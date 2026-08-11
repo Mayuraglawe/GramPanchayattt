@@ -235,7 +235,15 @@ export async function initDb(): Promise<void> {
 // ─── Users Queries ─────────────────────────────────────────────────────────────
 export async function getUsers(): Promise<DbUser[]> {
   const users = await prisma.user.findMany();
-  return users.map((u: any) => ({
+  return users.map((u: {
+    id: string;
+    name: string;
+    mobile: string;
+    hashed_pin: string;
+    role: string;
+    ward_no: number | null;
+    created_at: Date;
+  }) => ({
     id: u.id,
     fullName: u.name,
     mobile: u.mobile,
@@ -348,7 +356,16 @@ export async function getAuditLogs(): Promise<DbAuditLog[]> {
     orderBy: { created_at: 'desc' },
   });
 
-  return logs.map((l: any) => ({
+  return logs.map((l: {
+    id: string;
+    user_id: string;
+    user: { name: string; role: string };
+    action: string;
+    entity_type: string;
+    new_value: unknown;
+    ip_address: string | null;
+    created_at: Date;
+  }) => ({
     id: l.id,
     userId: l.user_id,
     userName: l.user.name,
@@ -380,10 +397,21 @@ export async function getCertificates(): Promise<DbCertificate[]> {
     orderBy: { applied_at: 'desc' },
   });
 
-  return certs.map((c: any) => ({
+  return certs.map((c: {
+    id: string;
+    applicant: { name: string };
+    applicant_name_mr: string | null;
+    type: string;
+    status: string;
+    ward_no: number | null;
+    applied_at: Date;
+    approved_at: Date | null;
+    approved_by: string | null;
+    certificate_number: string | null;
+  }) => ({
     id: c.id,
     applicantName: c.applicant.name,
-    applicantNameMr: c.applicant_name_mr,
+    applicantNameMr: c.applicant_name_mr || '',
     type: c.type.toString(),
     status: c.status as DbCertificate['status'],
     ward_no: c.ward_no ?? 1,
@@ -454,7 +482,17 @@ export async function getComplaints(): Promise<DbComplaint[]> {
     orderBy: { created_at: 'desc' },
   });
 
-  return comps.map((c: any) => ({
+  return comps.map((c: {
+    id: string;
+    filer: { name: string };
+    category: string;
+    description: string;
+    ward_no: number | null;
+    status: string;
+    created_at: Date;
+    geo_lat: { toString(): string } | null;
+    geo_lng: { toString(): string } | null;
+  }) => ({
     id: c.id,
     filerName: c.filer.name,
     category: c.category,
