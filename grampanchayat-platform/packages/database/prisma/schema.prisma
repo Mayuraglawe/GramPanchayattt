@@ -1,61 +1,869 @@
+// ============================================================
+// GRAM PANCHAYAT DIGITAL PLATFORM — DATABASE SCHEMA
+// Version: 1.0.0 | ORM: Prisma | DB: PostgreSQL
+// Multi-tenant: Shared DB, Separate Schema per GP
+// ============================================================
+
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["multiSchema", "postgresqlExtensions"]
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [pgvector(map: "vector", schema: "public"), uuidOssp(map: "uuid-ossp", schema: "public")]
 }
 
-// GRAM PANCHAYAT CONFIG
-model gp_config {
-  id               String   @id @default(uuid())
+// ============================================================
+// ENUMS
+// ============================================================
+
+enum UserRole {
+  CITIZEN
+  OPERATOR
+  GRAMSEVAK
+  SARPANCH
+  ADMIN
+}
+
+enum CertificateType {
+  BIRTH
+  DEATH
+  INCOME
+  CASTE
+  DOMICILE
+  RESIDENCE
+}
+
+enum ApplicationStatus {
+  PENDING
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+}
+
+enum ComplaintStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum ProjectStatus {
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  STALLED
+}
+
+enum NoticeType {
+  TENDER
+  GENERAL
+  URGENT
+  SCHEME
+}
+
+enum PaymentStatus {
+  INITIATED
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
+enum AgentActionLevel {
+  LEVEL_0
+  LEVEL_1
+  LEVEL_2
+  LEVEL_3
+}
+
+enum AgentPermissionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  EXPIRED
+  AUTO_APPROVED
+}
+
+enum AgentName {
+  CertificateAgent
+  GrievanceAgent
+  NotificationAgent
+  ReportAgent
+  SchemeMatchAgent
+}
+
+enum NotificationChannel {
+  SMS
+  WHATSAPP
+  EMAIL
+  PUSH
+}
+
+enum NotificationStatus {
+  QUEUED
+  SENT
+  FAILED
+  SKIPPED
+}
+
+enum GenderType {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum PropertyType {
+  RESIDENTIAL
+  COMMERCIAL
+  AGRICULTURAL
+  INDUSTRIAL
+  MIXED
+}
+
+enum WaterConnectionType {
+  DOMESTIC
+  COMMERCIAL
+  AGRICULTURAL
+}
+
+// ============================================================
+// MODULE 1: GRAM PANCHAYAT CONFIGURATION
+// ============================================================
+
+/// Global registry of all onboarded GPs (lives in public schema)
+model GpRegistry {
+  id               String   @id @default(uuid()) @db.Uuid
+  subdomain        String   @unique
   gp_name          String
   gp_name_marathi  String
   district         String
   taluka           String
-  sarpanch_name    String
-  gramsevak_name   String
-  contact_email    String?
-  contact_phone    String?
+  state            String   @default("Maharashtra")
+  pincode          String   @db.Char(6)
   address          String
-  logo_url         String?
-  ward_count       Int
   population       Int
+  ward_count       Int
   established_year Int?
-  pincode          String
+  logo_url         String?
+  is_active        Boolean  @default(true)
+  tier             Int      @default(2)
+  schema_name      String   @unique
   created_at       DateTime @default(now())
   updated_at       DateTime @updatedAt
+
+  @@map("gp_registry")
 }
 
-// USERS & ROLES
-model users {
-  id            String   @id @default(uuid())
-  name          String
-  mobile        String   @unique
-  email         String?
-  aadhaar_last4 String?
-  role          String   @default("CITIZEN") // CITIZEN, OPERATOR, GRAMSEVAK, SARPANCH, ADMIN
-  ward_no       Int?
-  is_verified   Boolean  @default(false)
+/// Detailed per-GP config (lives in each GP's own schema)
+model GpConfig {
+  id                    String    @id @default(uuid()) @db.Uuid
+  gp_name               String
+  gp_name_marathi       String
+  district              String
+  taluka                String
+  state                 String    @default("Maharashtra")
+  pincode               String    @db.Char(6)
+  address               String
+  address_marathi       String?
+  population            Int
+  ward_count            Int
+  area_sq_km            Decimal?  @db.Decimal(10, 4)
+  established_year      Int?
+  logo_url              String?
+  banner_url            String?
+  theme_color           String    @default("#FF6600")
+  sarpanch_user_id      String?   @db.Uuid
+  gramsevak_user_id     String?   @db.Uuid
+  contact_email         String?
+  contact_phone         String?
+  whatsapp_phone        String?
+  website_url           String?
+  vapid_public_key      String?
+  sms_quota_monthly     Int       @default(500)
+  sms_used_this_month   Int       @default(0)
+  created_at            DateTime  @default(now())
+  updated_at            DateTime  @updatedAt
+
+  @@map("gp_config")
+}
+
+// ============================================================
+// MODULE 2: USERS & AUTH
+// ============================================================
+
+model User {
+  id                    String     @id @default(uuid()) @db.Uuid
+  name                  String
+  name_marathi          String?
+  mobile                String     @unique
+  email                 String?
+  aadhaar_last4         String?    @db.Char(4)
+  gender                GenderType?
+  dob                   DateTime?
+  role                  UserRole   @default(CITIZEN)
+  ward_no               Int?
+  address               String?
+  photo_url             String?
+  is_verified           Boolean    @default(false)
+  is_active             Boolean    @default(true)
+  consent_given         Boolean    @default(false)
+  consent_given_at      DateTime?
+  deletion_requested    Boolean    @default(false)
+  deletion_requested_at DateTime?
+  created_at            DateTime   @default(now())
+  updated_at            DateTime   @updatedAt
+
+  otp_sessions              OtpSession[]
+  push_subscriptions        PushSubscription[]
+  certificate_applications  CertificateApplication[] @relation("Applicant")
+  approved_certificates     CertificateApplication[] @relation("Approver")
+  complaints                Complaint[]              @relation("ComplaintFiler")
+  assigned_complaints       Complaint[]              @relation("ComplaintAssignee")
+  properties                Property[]
+  agent_approvals           AgentPermissionApproval[]
+  audit_logs                AuditLog[]
+  consent_logs              ConsentLog[]
+  notifications             Notification[]
+
+  @@index([mobile])
+  @@index([role])
+  @@map("users")
+}
+
+model OtpSession {
+  id            String   @id @default(uuid()) @db.Uuid
+  user_id       String?  @db.Uuid
+  mobile        String
+  otp_hash      String
+  expires_at    DateTime
+  is_used       Boolean  @default(false)
+  attempt_count Int      @default(0)
+  ip_address    String?
   created_at    DateTime @default(now())
+
+  user          User?    @relation(fields: [user_id], references: [id])
+
+  @@index([mobile])
+  @@index([expires_at])
+  @@map("otp_sessions")
 }
 
-// CERTIFICATES
-model certificate_applications {
-  id                 String    @id @default(uuid())
-  user_id            String
-  type               String // BIRTH, DEATH, INCOME, CASTE, DOMICILE, RESIDENCE
+model PushSubscription {
+  id          String   @id @default(uuid()) @db.Uuid
+  user_id     String   @db.Uuid
+  endpoint    String   @unique
+  p256dh_key  String
+  auth_key    String
+  device_info String?
+  is_active   Boolean  @default(true)
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  user        User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@map("push_subscriptions")
+}
+
+model ConsentLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  user_id    String   @db.Uuid
+  purpose    String
+  consented  Boolean
+  ip_address String?
+  user_agent String?
+  created_at DateTime @default(now())
+
+  user       User     @relation(fields: [user_id], references: [id])
+
+  @@index([user_id])
+  @@map("consent_logs")
+}
+
+// ============================================================
+// MODULE 3: ELECTED MEMBERS
+// ============================================================
+
+model Member {
+  id             String   @id @default(uuid()) @db.Uuid
+  user_id        String?  @db.Uuid
+  name           String
+  name_marathi   String
+  designation    String
+  designation_mr String
+  ward_no        Int?
+  party          String?
+  photo_url      String?
+  contact_phone  String?
+  contact_email  String?
+  term_start     DateTime
+  term_end       DateTime?
+  is_active      Boolean  @default(true)
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+
+  @@index([ward_no])
+  @@map("members")
+}
+
+// ============================================================
+// MODULE 4: CERTIFICATE APPLICATIONS
+// ============================================================
+
+model CertificateApplication {
+  id                 String            @id @default(uuid()) @db.Uuid
+  certificate_number String?           @unique
+  user_id            String            @db.Uuid
+  type               CertificateType
   applicant_name     String
   applicant_name_mr  String
+  applicant_relation String?
   dob                DateTime?
+  gender             GenderType?
   address            String
-  supporting_docs    Json
-  status             String    @default("PENDING") // PENDING, UNDER_REVIEW, APPROVED, REJECTED
+  address_mr         String?
+  father_name        String?
+  mother_name        String?
+  ward_no            Int?
+  supporting_docs    Json              @default("[]")
+  status             ApplicationStatus @default(PENDING)
   remarks            String?
   certificate_url    String?
-  applied_at         DateTime  @default(now())
+  certificate_s3_key String?
+  applied_at         DateTime          @default(now())
+  under_review_at    DateTime?
   approved_at        DateTime?
-  approved_by        String?
-  certificate_number String?   @unique
+  rejected_at        DateTime?
+  approved_by        String?           @db.Uuid
+  fee_amount         Decimal?          @db.Decimal(10, 2)
+  payment_id         String?
+  deceased_name      String?
+  date_of_death      DateTime?
+  annual_income      Decimal?          @db.Decimal(12, 2)
+  created_at         DateTime          @default(now())
+  updated_at         DateTime          @updatedAt
+
+  applicant          User              @relation("Applicant", fields: [user_id], references: [id])
+  approver           User?             @relation("Approver", fields: [approved_by], references: [id])
+
+  @@index([user_id])
+  @@index([status])
+  @@index([type])
+  @@index([applied_at])
+  @@map("certificate_applications")
+}
+
+// ============================================================
+// MODULE 5: PROPERTY TAX
+// ============================================================
+
+model Property {
+  id                String       @id @default(uuid()) @db.Uuid
+  owner_user_id     String?      @db.Uuid
+  owner_name        String
+  owner_name_mr     String?
+  survey_no         String
+  ward_no           Int
+  area_sqft         Decimal      @db.Decimal(10, 2)
+  property_type     PropertyType
+  address           String
+  geo_lat           Decimal?     @db.Decimal(10, 7)
+  geo_lng           Decimal?     @db.Decimal(10, 7)
+  annual_tax_amount Decimal      @db.Decimal(10, 2)
+  tax_due_date      DateTime?
+  last_paid_date    DateTime?
+  last_paid_amount  Decimal?     @db.Decimal(10, 2)
+  arrears           Decimal      @default(0) @db.Decimal(10, 2)
+  is_tax_exempt     Boolean      @default(false)
+  exemption_reason  String?
+  created_at        DateTime     @default(now())
+  updated_at        DateTime     @updatedAt
+
+  owner             User?        @relation(fields: [owner_user_id], references: [id])
+  tax_payments      TaxPayment[]
+
+  @@index([survey_no])
+  @@index([ward_no])
+  @@map("properties")
+}
+
+model TaxPayment {
+  id                  String        @id @default(uuid()) @db.Uuid
+  property_id         String        @db.Uuid
+  amount              Decimal       @db.Decimal(10, 2)
+  period              String
+  payment_status      PaymentStatus @default(INITIATED)
+  razorpay_order_id   String?       @unique
+  razorpay_payment_id String?       @unique
+  receipt_url         String?
+  receipt_s3_key      String?
+  paid_at             DateTime?
+  created_at          DateTime      @default(now())
+
+  property            Property      @relation(fields: [property_id], references: [id])
+
+  @@index([property_id])
+  @@index([payment_status])
+  @@map("tax_payments")
+}
+
+// ============================================================
+// MODULE 6: WATER BILL
+// ============================================================
+
+model WaterConnection {
+  id                String              @id @default(uuid()) @db.Uuid
+  connection_number String              @unique
+  owner_user_id     String?             @db.Uuid
+  owner_name        String
+  ward_no           Int
+  address           String
+  connection_type   WaterConnectionType @default(DOMESTIC)
+  monthly_rate      Decimal             @db.Decimal(10, 2)
+  meter_number      String?
+  is_active         Boolean             @default(true)
+  created_at        DateTime            @default(now())
+  updated_at        DateTime            @updatedAt
+
+  water_bills       WaterBill[]
+
+  @@index([owner_user_id])
+  @@map("water_connections")
+}
+
+model WaterBill {
+  id                  String        @id @default(uuid()) @db.Uuid
+  connection_id       String        @db.Uuid
+  billing_month       String
+  units_consumed      Decimal?      @db.Decimal(10, 2)
+  amount_due          Decimal       @db.Decimal(10, 2)
+  penalty             Decimal       @default(0) @db.Decimal(10, 2)
+  total_amount        Decimal       @db.Decimal(10, 2)
+  due_date            DateTime
+  payment_status      PaymentStatus @default(INITIATED)
+  razorpay_order_id   String?       @unique
+  razorpay_payment_id String?       @unique
+  receipt_url         String?
+  paid_at             DateTime?
+  created_at          DateTime      @default(now())
+
+  connection          WaterConnection @relation(fields: [connection_id], references: [id])
+
+  @@index([connection_id])
+  @@index([billing_month])
+  @@map("water_bills")
+}
+
+// ============================================================
+// MODULE 7: COMPLAINTS / GRIEVANCES
+// ============================================================
+
+model Complaint {
+  id                      String          @id @default(uuid()) @db.Uuid
+  tracking_id             String          @unique @default(cuid())
+  user_id                 String          @db.Uuid
+  category                String
+  category_mr             String?
+  sub_category            String?
+  description             String
+  description_mr          String?
+  location                String?
+  geo_lat                 Decimal?        @db.Decimal(10, 7)
+  geo_lng                 Decimal?        @db.Decimal(10, 7)
+  ward_no                 Int?
+  photo_urls              Json            @default("[]")
+  status                  ComplaintStatus @default(OPEN)
+  urgency                 Int             @default(2)
+  assigned_to             String?         @db.Uuid
+  resolution_note         String?
+  resolution_note_mr      String?
+  escalated_to_sarpanch   Boolean         @default(false)
+  escalation_date         DateTime?
+  created_at              DateTime        @default(now())
+  assigned_at             DateTime?
+  resolved_at             DateTime?
+  closed_at               DateTime?
+  updated_at              DateTime        @updatedAt
+
+  filer                   User            @relation("ComplaintFiler", fields: [user_id], references: [id])
+  assignee                User?           @relation("ComplaintAssignee", fields: [assigned_to], references: [id])
+
+  @@index([user_id])
+  @@index([status])
+  @@index([category])
+  @@index([tracking_id])
+  @@map("complaints")
+}
+
+// ============================================================
+// MODULE 8: PROJECTS / WORKS
+// ============================================================
+
+model Project {
+  id               String        @id @default(uuid()) @db.Uuid
+  name             String
+  name_mr          String
+  description      String?
+  description_mr   String?
+  category         String
+  scheme_name      String?
+  budget_allocated Decimal       @db.Decimal(15, 2)
+  budget_spent     Decimal       @default(0) @db.Decimal(15, 2)
+  contractor_name  String?
+  contractor_phone String?
+  start_date       DateTime
+  end_date         DateTime?
+  actual_end_date  DateTime?
+  status           ProjectStatus @default(PLANNED)
+  ward_no          Int?
+  geo_lat          Decimal?      @db.Decimal(10, 7)
+  geo_lng          Decimal?      @db.Decimal(10, 7)
+  photos           Json          @default("[]")
+  tender_number    String?
+  created_by       String        @db.Uuid
+  created_at       DateTime      @default(now())
+  updated_at       DateTime      @updatedAt
+
+  progress_updates ProjectProgressUpdate[]
+
+  @@index([status])
+  @@index([ward_no])
+  @@index([category])
+  @@map("projects")
+}
+
+model ProjectProgressUpdate {
+  id           String   @id @default(uuid()) @db.Uuid
+  project_id   String   @db.Uuid
+  note         String
+  note_mr      String?
+  progress_pct Int      @default(0)
+  photos       Json     @default("[]")
+  updated_by   String   @db.Uuid
+  created_at   DateTime @default(now())
+
+  project      Project  @relation(fields: [project_id], references: [id], onDelete: Cascade)
+
+  @@index([project_id])
+  @@map("project_progress_updates")
+}
+
+// ============================================================
+// MODULE 9: BUDGET
+// ============================================================
+
+model BudgetHead {
+  id               String   @id @default(uuid()) @db.Uuid
+  financial_year   String
+  head_code        String
+  head_name        String
+  head_name_mr     String
+  category         String
+  allocated_amount Decimal  @db.Decimal(15, 2)
+  spent_amount     Decimal  @default(0) @db.Decimal(15, 2)
+  remarks          String?
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
+
+  budget_entries   BudgetEntry[]
+
+  @@unique([financial_year, head_code])
+  @@index([financial_year])
+  @@map("budget_heads")
+}
+
+model BudgetEntry {
+  id             String     @id @default(uuid()) @db.Uuid
+  head_id        String     @db.Uuid
+  voucher_number String?    @unique
+  entry_type     String
+  amount         Decimal    @db.Decimal(15, 2)
+  description    String
+  description_mr String?
+  entry_date     DateTime   @default(now())
+  created_by     String     @db.Uuid
+  attachment_url String?
+  created_at     DateTime   @default(now())
+
+  head           BudgetHead @relation(fields: [head_id], references: [id])
+
+  @@index([head_id])
+  @@index([entry_date])
+  @@map("budget_entries")
+}
+
+// ============================================================
+// MODULE 10: GRAM SABHA MEETINGS
+// ============================================================
+
+model GramSabha {
+  id              String   @id @default(uuid()) @db.Uuid
+  meeting_date    DateTime
+  meeting_type    String   @default("REGULAR")
+  venue           String?
+  agenda          Json     @default("[]")
+  attendees_count Int      @default(0)
+  quorum_met      Boolean  @default(false)
+  minutes_url     String?
+  decisions       Json     @default("[]")
+  is_deleted      Boolean  @default(false)
+  created_by      String   @db.Uuid
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  @@index([meeting_date])
+  @@map("gram_sabha")
+}
+
+// ============================================================
+// MODULE 11: NOTICES & ANNOUNCEMENTS
+// ============================================================
+
+model Notice {
+  id             String     @id @default(uuid()) @db.Uuid
+  title          String
+  title_mr       String
+  body           String
+  body_mr        String
+  type           NoticeType @default(GENERAL)
+  attachment_url String?
+  published_at   DateTime?
+  expires_at     DateTime?
+  is_published   Boolean    @default(false)
+  views_count    Int        @default(0)
+  created_by     String     @db.Uuid
+  created_at     DateTime   @default(now())
+  updated_at     DateTime   @updatedAt
+
+  @@index([is_published])
+  @@index([type])
+  @@index([published_at])
+  @@map("notices")
+}
+
+// ============================================================
+// MODULE 12: GOVERNMENT SCHEMES
+// ============================================================
+
+model Scheme {
+  id               String   @id @default(uuid()) @db.Uuid
+  scheme_code      String   @unique
+  name             String
+  name_mr          String
+  description      String
+  description_mr   String
+  government_level String   @default("CENTRAL")
+  ministry         String?
+  eligibility      Json     @default("{}")
+  benefits         String
+  benefits_mr      String
+  application_url  String?
+  helpline         String?
+  is_active        Boolean  @default(true)
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
+
+  @@index([is_active])
+  @@map("schemes")
+}
+
+model SchemeEligibility {
+  id          String   @id @default(uuid()) @db.Uuid
+  user_id     String   @db.Uuid
+  scheme_id   String   @db.Uuid
+  is_eligible Boolean  @default(true)
+  matched_at  DateTime @default(now())
+  notified    Boolean  @default(false)
+  notified_at DateTime?
+  enrolled    Boolean  @default(false)
+  enrolled_at DateTime?
+
+  @@unique([user_id, scheme_id])
+  @@index([user_id])
+  @@map("scheme_eligibilities")
+}
+
+// ============================================================
+// MODULE 13: RTI (Right to Information)
+// ============================================================
+
+model RtiRequest {
+  id              String   @id @default(uuid()) @db.Uuid
+  user_id         String?  @db.Uuid
+  applicant_name  String
+  applicant_phone String
+  subject         String
+  description     String
+  requested_docs  Json     @default("[]")
+  status          String   @default("RECEIVED")
+  response_url    String?
+  response_note   String?
+  deadline_date   DateTime?
+  filed_at        DateTime @default(now())
+  responded_at    DateTime?
+  created_at      DateTime @default(now())
+
+  @@index([status])
+  @@map("rti_requests")
+}
+
+// ============================================================
+// MODULE 14: AI AGENT PERMISSION SYSTEM
+// ============================================================
+
+model AgentPermissionRequest {
+  id                    String                @id @default(uuid()) @db.Uuid
+  agent_name            AgentName
+  action_level          AgentActionLevel
+  action                String
+  reason                String
+  affected_entity       String
+  payload               Json
+  alternative_if_denied String
+  status                AgentPermissionStatus @default(PENDING)
+  required_approvers    String[]
+  requested_at          DateTime              @default(now())
+  expires_at            DateTime
+  outcome               String?
+  correlation_id        String?
+
+  approvals             AgentPermissionApproval[]
+  audit_log             AgentAuditLog?
+
+  @@index([status])
+  @@index([agent_name])
+  @@index([requested_at])
+  @@map("agent_permission_requests")
+}
+
+model AgentPermissionApproval {
+  id          String   @id @default(uuid()) @db.Uuid
+  request_id  String   @db.Uuid
+  approved_by String   @db.Uuid
+  role        UserRole
+  approved    Boolean
+  comment     String?
+  approved_at DateTime @default(now())
+
+  request     AgentPermissionRequest @relation(fields: [request_id], references: [id], onDelete: Cascade)
+  user        User                   @relation(fields: [approved_by], references: [id])
+
+  @@index([request_id])
+  @@map("agent_permission_approvals")
+}
+
+model AgentAuditLog {
+  id                    String                  @id @default(uuid()) @db.Uuid
+  agent_name            AgentName
+  action                String
+  action_level          AgentActionLevel
+  payload               Json
+  permission_request_id String?                 @unique @db.Uuid
+  permission_granted_by String?                 @db.Uuid
+  permission_granted_at DateTime?
+  outcome               String
+  error_message         String?
+  correlation_id        String?
+  duration_ms           Int?
+  created_at            DateTime                @default(now())
+
+  permission_request    AgentPermissionRequest? @relation(fields: [permission_request_id], references: [id])
+
+  @@index([agent_name])
+  @@index([created_at])
+  @@index([correlation_id])
+  @@map("agent_audit_logs")
+}
+
+model AgentDeadLetterQueue {
+  id            String    @id @default(uuid()) @db.Uuid
+  agent_name    AgentName
+  job_id        String?
+  action        String
+  payload       Json
+  error_message String
+  stack_trace   String?
+  retry_count   Int       @default(0)
+  resolved      Boolean   @default(false)
+  resolved_by   String?   @db.Uuid
+  resolved_at   DateTime?
+  created_at    DateTime  @default(now())
+
+  @@index([resolved])
+  @@index([agent_name])
+  @@map("agent_dead_letter_queue")
+}
+
+// ============================================================
+// MODULE 15: NOTIFICATIONS
+// ============================================================
+
+model Notification {
+  id             String              @id @default(uuid()) @db.Uuid
+  user_id        String              @db.Uuid
+  channel        NotificationChannel
+  recipient      String
+  template_id    String?
+  subject        String?
+  message        String
+  status         NotificationStatus  @default(QUEUED)
+  sent_at        DateTime?
+  error          String?
+  job_id         String?
+  correlation_id String?
+  created_at     DateTime            @default(now())
+
+  user           User                @relation(fields: [user_id], references: [id])
+
+  @@index([user_id])
+  @@index([status])
+  @@index([channel])
+  @@index([sent_at])
+  @@map("notifications")
+}
+
+// ============================================================
+// MODULE 16: GENERAL AUDIT LOG
+// ============================================================
+
+model AuditLog {
+  id          String   @id @default(uuid()) @db.Uuid
+  user_id     String   @db.Uuid
+  action      String
+  entity_type String
+  entity_id   String
+  old_value   Json?
+  new_value   Json?
+  ip_address  String?
+  user_agent  String?
+  created_at  DateTime @default(now())
+
+  user        User     @relation(fields: [user_id], references: [id])
+
+  @@index([user_id])
+  @@index([entity_type, entity_id])
+  @@index([created_at])
+  @@map("audit_logs")
+}
+
+// ============================================================
+// MODULE 17: REPORTS
+// ============================================================
+
+model Report {
+  id          String     @id @default(uuid()) @db.Uuid
+  report_type String
+  period      String
+  data        Json
+  pdf_s3_key  String?
+  pdf_url     String?
+  generated_by AgentName?
+  is_public   Boolean    @default(false)
+  created_at  DateTime   @default(now())
+
+  @@index([report_type])
+  @@index([created_at])
+  @@map("reports")
 }
