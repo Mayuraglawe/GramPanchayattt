@@ -1,9 +1,23 @@
 import { headers } from 'next/headers';
 import Link from 'next/link';
+import { getUsers, getCertificates, getComplaints } from '@/lib/db';
 
 export default async function SuperAdminDashboard() {
   const h = await headers();
   const name = h.get('x-user-name') ?? 'Gram Sevak';
+
+  // Fetch all stats on the server
+  const allUsers = await getUsers();
+  const certificates = await getCertificates();
+  const complaints = await getComplaints();
+
+  const totalUsers = allUsers.length;
+  const pendingCertificates = certificates.filter(
+    (c) => c.status === 'PENDING' || c.status === 'UNDER_REVIEW'
+  ).length;
+  const activeComplaints = complaints.filter(
+    (c) => c.status === 'OPEN' || c.status === 'IN_PROGRESS'
+  ).length;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -32,17 +46,17 @@ export default async function SuperAdminDashboard() {
 
       <main className="max-w-6xl mx-auto px-6 py-10">
         <div className="mb-8">
-          <h2 className="text-2xl font-bold text-gray-800">Super Admin Dashboard</h2>
+          <h2 className="text-2xl font-bold text-gray-800">Super Admin DashboardCenter</h2>
           <p className="text-gray-500 mt-1">Full platform control — Gram Sevak access</p>
         </div>
 
         {/* Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
           {[
-            { label: 'Total Users', value: '—', icon: '👥', color: 'bg-blue-50 border-blue-200' },
-            { label: 'Pending Certificates', value: '—', icon: '📋', color: 'bg-yellow-50 border-yellow-200' },
-            { label: 'Open Complaints', value: '—', icon: '📣', color: 'bg-red-50 border-red-200' },
-            { label: 'Active Projects', value: '—', icon: '🏗️', color: 'bg-green-50 border-green-200' },
+            { label: 'Total Users', value: totalUsers.toString(), icon: '👥', color: 'bg-blue-50 border-blue-200' },
+            { label: 'Pending Certificates (All)', value: pendingCertificates.toString(), icon: '📋', color: 'bg-yellow-50 border-yellow-200' },
+            { label: 'Open Complaints (All)', value: activeComplaints.toString(), icon: '📣', color: 'bg-red-50 border-red-200' },
+            { label: 'Village Wards', value: '6 Wards', icon: '📍', color: 'bg-green-50 border-green-200' },
           ].map((s) => (
             <div key={s.label} className={`rounded-xl border p-5 ${s.color}`}>
               <div className="text-2xl mb-2">{s.icon}</div>
@@ -60,8 +74,8 @@ export default async function SuperAdminDashboard() {
             { title: 'Complaint Management', desc: 'Assign, escalate & resolve complaints', icon: '📣', href: '#' },
             { title: 'Budget & Finance', desc: 'Budget heads, entries, reconciliation', icon: '💰', href: '#' },
             { title: 'Projects & Works', desc: 'Create and track all GP projects', icon: '🏗️', href: '#' },
-            { title: 'Agent Control Panel', desc: 'AI agent permissions & audit log', icon: '🤖', href: '#' },
-            { title: 'Notices & Announcements', desc: 'Publish public notices and tenders', icon: '📢', href: '#' },
+            { title: 'System Configuration', desc: 'Configure Gateway APIs, DSC, Identity rules', icon: '⚙️', href: '/dashboard/super-admin/settings' },
+            { title: 'Security Audit Logs', desc: 'Immutable records for RTI transparency', icon: '🔍', href: '/dashboard/super-admin/audit-logs' },
             { title: 'Gram Sabha', desc: 'Meeting records, decisions, minutes', icon: '🏛️', href: '#' },
             { title: 'Reports', desc: 'Daily, monthly, annual platform reports', icon: '📊', href: '#' },
           ].map((m) => (
