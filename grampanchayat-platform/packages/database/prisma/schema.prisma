@@ -1,0 +1,61 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// GRAM PANCHAYAT CONFIG
+model gp_config {
+  id               String   @id @default(uuid())
+  gp_name          String
+  gp_name_marathi  String
+  district         String
+  taluka           String
+  sarpanch_name    String
+  gramsevak_name   String
+  contact_email    String?
+  contact_phone    String?
+  address          String
+  logo_url         String?
+  ward_count       Int
+  population       Int
+  established_year Int?
+  pincode          String
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
+}
+
+// USERS & ROLES
+model users {
+  id            String   @id @default(uuid())
+  name          String
+  mobile        String   @unique
+  email         String?
+  aadhaar_last4 String?
+  role          String   @default("CITIZEN") // CITIZEN, OPERATOR, GRAMSEVAK, SARPANCH, ADMIN
+  ward_no       Int?
+  is_verified   Boolean  @default(false)
+  created_at    DateTime @default(now())
+}
+
+// CERTIFICATES
+model certificate_applications {
+  id                 String    @id @default(uuid())
+  user_id            String
+  type               String // BIRTH, DEATH, INCOME, CASTE, DOMICILE, RESIDENCE
+  applicant_name     String
+  applicant_name_mr  String
+  dob                DateTime?
+  address            String
+  supporting_docs    Json
+  status             String    @default("PENDING") // PENDING, UNDER_REVIEW, APPROVED, REJECTED
+  remarks            String?
+  certificate_url    String?
+  applied_at         DateTime  @default(now())
+  approved_at        DateTime?
+  approved_by        String?
+  certificate_number String?   @unique
+}
