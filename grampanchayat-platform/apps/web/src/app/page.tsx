@@ -25,7 +25,7 @@ export default function Home() {
               <button aria-label="Accessibility" className="p-2 text-on-surface-variant hover:bg-surface-container-high rounded-full transition-colors hidden sm:block" title="Accessibility Settings">
                 <span className="material-symbols-outlined" data-icon="settings_accessibility">settings_accessibility</span>
               </button>
-              <a className="bg-primary hover:bg-primary-container text-on-primary font-label-md text-label-md py-2 px-4 rounded-full transition-colors whitespace-nowrap" href="#">
+              <a className="bg-primary hover:bg-primary-container text-on-primary font-label-md text-label-md py-2 px-4 rounded-full transition-colors whitespace-nowrap" href="/login">
                 Citizen Login
               </a>
             </div>
