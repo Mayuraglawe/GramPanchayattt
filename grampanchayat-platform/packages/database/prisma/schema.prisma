@@ -19,12 +19,14 @@ datasource db {
 // ENUMS
 // ============================================================
 
+// Role Hierarchy:
+//   SUPER_ADMIN → Gram Sevak (full platform control)
+//   ADMIN       → Sarpanch / Operator (approvals, notices, complaints)
+//   USER        → Citizen / local user (apply, pay, complain)
 enum UserRole {
-  CITIZEN
-  OPERATOR
-  GRAMSEVAK
-  SARPANCH
+  SUPER_ADMIN
   ADMIN
+  USER
 }
 
 enum CertificateType {
@@ -202,7 +204,7 @@ model User {
   aadhaar_last4         String?    @db.Char(4)
   gender                GenderType?
   dob                   DateTime?
-  role                  UserRole   @default(CITIZEN)
+  role                  UserRole   @default(USER)
   ward_no               Int?
   address               String?
   photo_url             String?
@@ -742,7 +744,7 @@ model AgentPermissionApproval {
   id          String   @id @default(uuid()) @db.Uuid
   request_id  String   @db.Uuid
   approved_by String   @db.Uuid
-  role        UserRole
+  role        UserRole  // SUPER_ADMIN or ADMIN who approved/rejected
   approved    Boolean
   comment     String?
   approved_at DateTime @default(now())
