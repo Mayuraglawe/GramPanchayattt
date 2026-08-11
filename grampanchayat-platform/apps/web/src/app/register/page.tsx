@@ -33,6 +33,7 @@ export default function RegisterPage() {
           fullName: formData.get('fullName'),
           mobile: formData.get('mobile'),
           pin,
+          aadhaar: formData.get('aadhaar'),
         }),
       });
 
@@ -107,15 +108,18 @@ export default function RegisterPage() {
             
             <div>
               <label htmlFor="aadhaar" className="block text-label-md font-label-md text-on-surface">
-                Aadhaar Number (Optional)
+                Last 4 Digits of Aadhaar (Optional)
               </label>
               <div className="mt-1">
                 <input
                   id="aadhaar"
                   name="aadhaar"
                   type="text"
+                  inputMode="numeric"
+                  pattern="\d{4}"
+                  maxLength={4}
                   className="appearance-none block w-full px-3 py-2 border border-outline-variant rounded-md shadow-sm placeholder-on-surface-variant/50 focus:outline-none focus:ring-primary focus:border-primary sm:text-body-md text-on-surface bg-surface-container-lowest"
-                  placeholder="12-digit Aadhaar number"
+                  placeholder="e.g. 1234"
                 />
               </div>
             </div>

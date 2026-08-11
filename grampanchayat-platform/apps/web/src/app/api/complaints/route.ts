@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
 
     const dbUser = await findUserByMobile(payload.mobile);
     const body = await request.json();
-    const { category, description } = body;
+    const { category, description, latitude, longitude } = body;
 
     if (!category || !description) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -68,6 +68,8 @@ export async function POST(request: NextRequest) {
       description,
       ward_no: dbUser?.ward_no ?? 1,
       status: 'OPEN',
+      latitude: latitude ? Number(latitude) : undefined,
+      longitude: longitude ? Number(longitude) : undefined,
     });
 
     await addAuditLog({

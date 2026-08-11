@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslation } from '@/lib/i18n';
+import { saveToOfflineQueue, syncOfflineQueue } from '@/lib/offline-db';
 
 interface Me {
   name: string;
@@ -33,15 +35,19 @@ interface Complaint {
 
 export default function UserDashboard() {
   const router = useRouter();
+  const { language, setLanguage, t } = useTranslation();
   const [me, setMe] = useState<Me | null>(null);
   
   // Lists
   const [certs, setCerts] = useState<Certificate[]>([]);
   const [complaints, setComplaints] = useState<Complaint[]>([]);
-
   // Modals Toggles
   const [showCertModal, setShowCertModal] = useState(false);
   const [showComplaintModal, setShowComplaintModal] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [geotagMsg, setGeotagMsg] = useState('');
 
   // Form states
   const [certForm, setCertForm] = useState({ type: 'INCOME', nameMr: '' });
@@ -72,6 +78,20 @@ export default function UserDashboard() {
 
   useEffect(() => {
     fetchUserData();
+
+    const handleOnline = () => {
+      syncOfflineQueue().then((synced) => {
+        if (synced) {
+          setMsg({ text: 'Online: Offline complaints synchronized with database successfully!', type: 'success' });
+          fetchUserData();
+        }
+      });
+    };
+
+    window.addEventListener('online', handleOnline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+    };
   }, [fetchUserData]);
 
   const handleLogout = async () => {
@@ -109,14 +129,18 @@ export default function UserDashboard() {
     e.preventDefault();
     setMsg({ text: '', type: '' });
 
+    const payload = {
+      category: complaintForm.category,
+      description: complaintForm.desc,
+      latitude: coords?.lat,
+      longitude: coords?.lng,
+    };
+
     try {
       const res = await fetch('/api/complaints', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          category: complaintForm.category,
-          description: complaintForm.desc,
-        }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to submit grievance');
@@ -124,9 +148,20 @@ export default function UserDashboard() {
       setMsg({ text: 'Grievance ticket registered successfully!', type: 'success' });
       setShowComplaintModal(false);
       setComplaintForm({ category: 'Water Supply', desc: '' });
+      setCoords(null);
+      setGeotagMsg('');
       fetchUserData();
     } catch (err: unknown) {
-      setMsg({ text: err instanceof Error ? err.message : 'Error filing grievance', type: 'error' });
+      if (typeof window !== 'undefined' && !navigator.onLine) {
+        saveToOfflineQueue(payload);
+        setMsg({ text: 'Offline: Your complaint has been saved locally and will auto-sync once network returns.', type: 'info' });
+        setShowComplaintModal(false);
+        setComplaintForm({ category: 'Water Supply', desc: '' });
+        setCoords(null);
+        setGeotagMsg('');
+      } else {
+        setMsg({ text: err instanceof Error ? err.message : 'Error filing grievance', type: 'error' });
+      }
     }
   };
 
@@ -135,20 +170,28 @@ export default function UserDashboard() {
       {/* Top bar */}
       <header className="bg-blue-700 text-white px-6 py-4 flex items-center justify-between shadow">
         <div>
-          <p className="text-xs opacity-75 uppercase tracking-widest">Citizen Portal</p>
+          <p className="text-xs opacity-75 uppercase tracking-widest">{t('citizen.title')}</p>
           <h1 className="text-xl font-bold">🏛️ Gram Panchayat</h1>
         </div>
         <div className="flex items-center gap-4">
+          {/* Language Toggle */}
+          <button
+            onClick={() => setLanguage(language === 'en' ? 'mr' : 'en')}
+            className="text-xs bg-blue-800 text-white border border-blue-600 px-3 py-1 rounded-full font-semibold hover:bg-blue-900 transition flex items-center gap-1"
+          >
+            <span>🌐</span> {language === 'en' ? 'मराठी' : 'English'}
+          </button>
+
           {me && (
             <span className="text-sm">
-              Welcome, <strong>{me.name}</strong> {me.ward_no && `(Ward ${me.ward_no})`}
+              {t('common.welcome')}, <strong>{me.name}</strong> {me.ward_no && `(Ward ${me.ward_no})`}
             </span>
           )}
           <button
             onClick={handleLogout}
             className="text-xs bg-white text-blue-700 px-3 py-1 rounded-full font-semibold hover:bg-blue-100 transition"
           >
-            Logout
+            {t('common.logout')}
           </button>
         </div>
       </header>
@@ -156,9 +199,9 @@ export default function UserDashboard() {
       <main className="max-w-4xl mx-auto px-6 py-10">
         <div className="mb-8">
           <h2 className="text-2xl font-bold text-gray-800">
-            {me ? `Hello, ${me.name}! 👋` : 'Loading…'}
+            {me ? `${t('common.welcome')}, ${me.name}! 👋` : t('common.loading')}
           </h2>
-          <p className="text-gray-500 mt-1">Access and track your Gram Panchayat digital requests.</p>
+          <p className="text-gray-500 mt-1">{t('citizen.subtitle')}</p>
         </div>
 
         {msg.text && (
@@ -182,8 +225,8 @@ export default function UserDashboard() {
           >
             <div className="text-4xl bg-blue-50 p-3 rounded-full text-blue-600 group-hover:scale-105 transition-transform">📜</div>
             <div>
-              <h3 className="font-bold text-gray-800 text-lg">Apply for Certificate</h3>
-              <p className="text-xs text-gray-500 mt-1">Request Birth, Income, Domicile or Caste certificates.</p>
+              <h3 className="font-bold text-gray-800 text-lg">{t('citizen.applyCert')}</h3>
+              <p className="text-xs text-gray-500 mt-1">{t('citizen.applyCertDesc')}</p>
             </div>
           </button>
 
@@ -194,10 +237,72 @@ export default function UserDashboard() {
           >
             <div className="text-4xl bg-red-50 p-3 rounded-full text-red-600 group-hover:scale-105 transition-transform">📣</div>
             <div>
-              <h3 className="font-bold text-gray-800 text-lg">File a Grievance</h3>
-              <p className="text-xs text-gray-500 mt-1">Report sanitation, roads or pipeline damages directly.</p>
+              <h3 className="font-bold text-gray-800 text-lg">{t('citizen.fileGrievance')}</h3>
+              <p className="text-xs text-gray-500 mt-1">{t('citizen.fileGrievanceDesc')}</p>
             </div>
           </button>
+        </div>
+
+        {/* 💳 Payments & Utility Bills */}
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 mb-12">
+          <h3 className="font-bold text-gray-800 text-lg mb-4 flex items-center gap-2">
+            <span>💳</span> Payments & Utility Bills
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="border border-gray-100 rounded-xl p-5 flex flex-col justify-between bg-gray-50/50">
+              <div>
+                <span className="text-xs font-bold text-blue-600 uppercase bg-blue-50 px-2 py-0.5 rounded">
+                  Property Tax
+                </span>
+                <div className="text-sm text-gray-500 mt-2">Property ID: <strong className="text-gray-700">SRV-1024-W1</strong></div>
+                <div className="text-2xl font-bold text-gray-800 mt-2">₹1,500.00</div>
+                <div className="text-xs text-red-500 mt-1">Outstanding Arrears (FY-2026-27)</div>
+              </div>
+              <button
+                onClick={async () => {
+                  setMsg({ text: '', type: '' });
+                  try {
+                    const res = await fetch('/api/payments/tax/initiate', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ propertyId: 'SRV-1024-W1', amount: 1500 }),
+                    });
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.error || 'Failed to initiate checkout');
+                    
+                    // Show simulated Razorpay modal
+                    const win = window as unknown as { _rzp_payment_id: string; _rzp_order_id: string };
+                    win._rzp_payment_id = data.paymentId;
+                    win._rzp_order_id = data.orderId;
+                    setShowPaymentModal(true);
+                  } catch (err: unknown) {
+                    const msgText = err instanceof Error ? err.message : 'Failed to initiate checkout';
+                    setMsg({ text: msgText, type: 'error' });
+                  }
+                }}
+                className="mt-6 px-4 py-2 bg-green-700 hover:bg-green-800 text-white font-semibold text-sm rounded-full transition w-full text-center"
+              >
+                Pay Outstanding Tax
+              </button>
+            </div>
+
+            <div className="border border-gray-100 rounded-xl p-5 flex flex-col justify-between bg-gray-50/50">
+              <div>
+                <span className="text-xs font-bold text-cyan-600 uppercase bg-cyan-50 px-2 py-0.5 rounded">
+                  Water Bill
+                </span>
+                <div className="text-sm text-gray-500 mt-2">Connection: <strong className="text-gray-700">WTR-CON-9021</strong></div>
+                <div className="text-2xl font-bold text-gray-800 mt-2">₹0.00</div>
+                <div className="text-xs text-green-600 mt-1">Paid · No outstanding dues</div>
+              </div>
+              <button
+                disabled
+                className="mt-6 px-4 py-2 bg-gray-200 text-gray-400 font-semibold text-sm rounded-full cursor-not-allowed w-full text-center"
+              >
+                Fully Paid
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Live track lists */}
@@ -205,7 +310,7 @@ export default function UserDashboard() {
           {/* Certificates Queue */}
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
             <h3 className="font-bold text-gray-800 text-lg mb-4 flex items-center gap-2">
-              <span>📜</span> Your Certificate Requests
+              <span>📜</span> {t('citizen.yourCerts')}
             </h3>
             {certs.length === 0 ? (
               <div className="text-center py-6 text-gray-400 text-sm">No applications found.</div>
@@ -215,7 +320,7 @@ export default function UserDashboard() {
                   <div key={c.id} className="py-3 flex justify-between items-center text-sm">
                     <div>
                       <div className="font-semibold text-gray-800">{c.type} Certificate</div>
-                      <div className="text-xs text-gray-400">Applied on {new Date(c.appliedAt).toLocaleDateString()}</div>
+                      <div className="text-xs text-gray-400">{t('citizen.appliedOn')} {new Date(c.appliedAt).toLocaleDateString()}</div>
                     </div>
                     <div className="flex items-center gap-3">
                       <span
@@ -246,7 +351,7 @@ export default function UserDashboard() {
           {/* Grievance tracker */}
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
             <h3 className="font-bold text-gray-800 text-lg mb-4 flex items-center gap-2">
-              <span>📣</span> Your Active Grievances
+              <span>📣</span> {t('citizen.yourComplaints')}
             </h3>
             {complaints.length === 0 ? (
               <div className="text-center py-6 text-gray-400 text-sm">No filed grievances found.</div>
@@ -287,10 +392,10 @@ export default function UserDashboard() {
       {showCertModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-xl max-w-md w-full p-6 shadow-xl border border-gray-200">
-            <h3 className="text-lg font-bold text-gray-800 mb-4">Apply for Digital Certificate</h3>
+            <h3 className="text-lg font-bold text-gray-800 mb-4">{t('citizen.certModalTitle')}</h3>
             <form onSubmit={handleCertSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Certificate Type</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">{t('citizen.certType')}</label>
                 <select
                   value={certForm.type}
                   onChange={(e) => setCertForm({ ...certForm, type: e.target.value })}
@@ -305,7 +410,7 @@ export default function UserDashboard() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Applicant Name (Marathi)</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">{t('citizen.applicantMr')}</label>
                 <input
                   type="text"
                   required
@@ -321,13 +426,13 @@ export default function UserDashboard() {
                   onClick={() => setShowCertModal(false)}
                   className="px-4 py-2 text-sm rounded-full border border-gray-300 hover:bg-gray-100 transition"
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button
                   type="submit"
                   className="px-4 py-2 text-sm rounded-full bg-blue-700 text-white hover:bg-blue-800 transition font-semibold"
                 >
-                  Submit Application
+                  {t('common.submit')}
                 </button>
               </div>
             </form>
@@ -339,10 +444,10 @@ export default function UserDashboard() {
       {showComplaintModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-xl max-w-md w-full p-6 shadow-xl border border-gray-200">
-            <h3 className="text-lg font-bold text-gray-800 mb-4">File Grievance Ticket</h3>
+            <h3 className="text-lg font-bold text-gray-800 mb-4">{t('citizen.grievanceModalTitle')}</h3>
             <form onSubmit={handleComplaintSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Grievance Category</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">{t('citizen.grievanceCategory')}</label>
                 <select
                   value={complaintForm.category}
                   onChange={(e) => setComplaintForm({ ...complaintForm, category: e.target.value })}
@@ -355,7 +460,7 @@ export default function UserDashboard() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Description</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">{t('citizen.desc')}</label>
                 <textarea
                   required
                   rows={4}
@@ -365,22 +470,124 @@ export default function UserDashboard() {
                   className="w-full border border-gray-300 rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
                 ></textarea>
               </div>
+              <div className="bg-gray-50 border border-gray-100 rounded-xl p-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-gray-500 uppercase">GPS Geotag Location</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setGeotagMsg('Accessing GPS coordinates...');
+                      if (!navigator.geolocation) {
+                        setGeotagMsg('GPS Geolocation not supported.');
+                        return;
+                      }
+                      navigator.geolocation.getCurrentPosition(
+                        (pos) => {
+                          setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+                          setGeotagMsg(`Location Tagged: ${pos.coords.latitude.toFixed(5)}, ${pos.coords.longitude.toFixed(5)}`);
+                        },
+                        (err) => {
+                          setGeotagMsg(`GPS Access Blocked: ${err.message}`);
+                        }
+                      );
+                    }}
+                    className="text-xs px-3 py-1 bg-red-50 hover:bg-red-100 text-red-700 font-semibold rounded-full border border-red-200 transition"
+                  >
+                    📍 Fetch Location
+                  </button>
+                </div>
+                {geotagMsg && (
+                  <p className="text-xs text-gray-500 italic mt-1">{geotagMsg}</p>
+                )}
+              </div>
               <div className="flex justify-end gap-2 pt-4">
                 <button
                   type="button"
                   onClick={() => setShowComplaintModal(false)}
                   className="px-4 py-2 text-sm rounded-full border border-gray-300 hover:bg-gray-100 transition"
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button
                   type="submit"
                   className="px-4 py-2 text-sm rounded-full bg-red-600 text-white hover:bg-red-700 transition font-semibold"
                 >
-                  File Complaint
+                  {t('common.submit')}
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* ── SIMULATED RAZORPAY BILLING MODAL ───────────────────────────────────── */}
+      {showPaymentModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-gray-100 flex flex-col items-center">
+            {/* Razorpay Header Branding */}
+            <div className="bg-blue-600 w-full py-4 rounded-t-xl -mt-6 -mx-6 flex flex-col items-center text-white mb-6">
+              <div className="text-xs uppercase tracking-widest opacity-85">Secure Checkout</div>
+              <div className="text-xl font-bold tracking-wide mt-1">Razorpay</div>
+            </div>
+            
+            <div className="text-4xl mb-3">💳</div>
+            <h3 className="font-bold text-gray-800 text-lg">Property Tax Payment</h3>
+            <p className="text-xs text-gray-400 mt-1">Order Ref: {((window as unknown) as { _rzp_order_id?: string })._rzp_order_id || 'order_MOCK'}</p>
+            <div className="text-2xl font-bold text-gray-900 mt-4">₹1,500.00</div>
+            
+            <div className="w-full space-y-3 mt-6">
+              <button
+                onClick={async () => {
+                  setShowPaymentModal(false);
+                  setMsg({ text: 'Simulating secure transaction processing...', type: 'info' });
+                  try {
+                    const res = await fetch('/api/payments/tax/verify', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        paymentId: ((window as unknown) as { _rzp_payment_id?: string })._rzp_payment_id,
+                        razorpayPaymentId: 'pay_' + Math.floor(100000 + Math.random() * 900000).toString(),
+                        success: true,
+                      }),
+                    });
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.error || 'Failed to verify transaction');
+
+                    setMsg({ text: 'Property tax payment verified successfully! Arrears updated to 0.', type: 'success' });
+                    fetchUserData();
+                  } catch (err: unknown) {
+                    const msgText = err instanceof Error ? err.message : 'Failed to verify transaction';
+                    setMsg({ text: msgText, type: 'error' });
+                  }
+                }}
+                className="w-full py-2 bg-green-600 hover:bg-green-700 text-white font-semibold text-sm rounded-full transition"
+              >
+                Simulate Successful Payment
+              </button>
+              
+              <button
+                onClick={async () => {
+                  setShowPaymentModal(false);
+                  try {
+                    await fetch('/api/payments/tax/verify', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        paymentId: ((window as unknown) as { _rzp_payment_id?: string })._rzp_payment_id,
+                        razorpayPaymentId: 'pay_fail',
+                        success: false,
+                      }),
+                    });
+                    setMsg({ text: 'Payment transaction failed or cancelled by user.', type: 'error' });
+                  } catch (err: unknown) {
+                    const msgText = err instanceof Error ? err.message : 'Payment verify failed';
+                    setMsg({ text: msgText, type: 'error' });
+                  }
+                }}
+                className="w-full py-2 bg-red-100 hover:bg-red-200 text-red-700 font-semibold text-sm rounded-full transition"
+              >
+                Simulate Failure / Cancel
+              </button>
+            </div>
           </div>
         </div>
       )}

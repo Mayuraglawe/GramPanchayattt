@@ -2,6 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
+
+const GrievanceMap = dynamic(() => import('@/components/GrievanceMap'), {
+  ssr: false,
+  loading: () => <div className="h-[350px] bg-gray-100 rounded-2xl flex items-center justify-center text-gray-400 font-semibold border border-gray-200 shadow-inner">Loading Map Layer...</div>
+});
 
 interface Complaint {
   id: string;
@@ -115,6 +121,11 @@ export default function AdminComplaints() {
               <option value="CLOSED">Closed</option>
             </select>
           </div>
+        </div>
+
+        {/* Dynamic Leaflet Map */}
+        <div className="mb-8">
+          <GrievanceMap complaints={filteredComplaints} />
         </div>
 
         {error && (

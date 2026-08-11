@@ -1,8 +1,9 @@
-import fs from 'fs/promises';
-import path from 'path';
+import { prisma } from './prisma';
 import type { UserRole } from './auth';
+import { UserRole as PrismaUserRole, CertificateType, ApplicationStatus, ComplaintStatus } from '@prisma/client';
+import bcrypt from 'bcryptjs';
 
-// ─── Interfaces ───────────────────────────────────────────────────────────────
+// ─── Interfaces (Mapped to original UI/API types) ─────────────────────────────
 export interface DbUser {
   id: string;
   fullName: string;
@@ -55,169 +56,208 @@ export interface DbComplaint {
   ward_no: number;
   status: 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED';
   createdAt: string;
+  latitude?: number;
+  longitude?: number;
 }
 
-interface DatabaseSchema {
-  users: DbUser[];
-  settings: DbSettings;
-  auditLogs: DbAuditLog[];
-  certificates: DbCertificate[];
-  complaints: DbComplaint[];
-}
-
-const DB_FILE = path.join(process.cwd(), 'db.json');
-
-const DEFAULT_SETTINGS: DbSettings = {
-  smsProvider: 'MSG91',
-  smsApiKey: 'MOCK_API_KEY_12345',
-  smsSenderId: 'GMPNCH',
-  enableAadhaarVerification: true,
-  enableDigilockerSync: false,
-  enableDscSigning: false,
-  dscSignerName: 'Suresh Wankhede (Gram Sevak)',
-};
-
-// Seed initial users & records
-const SEED_USERS = [
-  {
-    id: 'user-super-admin',
-    fullName: 'Suresh Wankhede',
-    mobile: '9876543210',
-    // Hash for PIN "1234"
-    hashedPin: '$2a$10$qR69a.t3fP18104E9M/BJuC5Wp815p0Vee0.uV4p3iSgK471D1Oqu',
-    role: 'SUPER_ADMIN' as UserRole,
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: 'user-admin-ward1',
-    fullName: 'Ramesh Patil',
-    mobile: '9876543211',
-    hashedPin: '$2a$10$qR69a.t3fP18104E9M/BJuC5Wp815p0Vee0.uV4p3iSgK471D1Oqu',
-    role: 'ADMIN' as UserRole,
-    ward_no: 1,
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: 'user-admin-ward2',
-    fullName: 'Maruti Rao',
-    mobile: '9876543212',
-    hashedPin: '$2a$10$qR69a.t3fP18104E9M/BJuC5Wp815p0Vee0.uV4p3iSgK471D1Oqu',
-    role: 'ADMIN' as UserRole,
-    ward_no: 2,
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: 'user-citizen',
-    fullName: 'Ram Pawar',
-    mobile: '9876543213',
-    hashedPin: '$2a$10$qR69a.t3fP18104E9M/BJuC5Wp815p0Vee0.uV4p3iSgK471D1Oqu',
-    role: 'USER' as UserRole,
-    ward_no: 1,
-    createdAt: new Date().toISOString(),
-  },
-];
-
-const SEED_CERTIFICATES: DbCertificate[] = [
-  {
-    id: 'cert-1',
-    applicantName: 'Ram Pawar',
-    applicantNameMr: 'राम पवार',
-    type: 'INCOME',
-    status: 'PENDING',
-    ward_no: 1,
-    appliedAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), // 1 day ago
-  },
-  {
-    id: 'cert-2',
-    applicantName: 'Sanjay Deshmukh',
-    applicantNameMr: 'संजय देशमुख',
-    type: 'BIRTH',
-    status: 'PENDING',
-    ward_no: 2,
-    appliedAt: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString(), // 2 days ago
-  },
-  {
-    id: 'cert-3',
-    applicantName: 'Sunita Gadkari',
-    applicantNameMr: 'सुनीता गडकरी',
-    type: 'DOMICILE',
-    status: 'APPROVED',
-    ward_no: 1,
-    appliedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-    approvedAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
-    approvedBy: 'Suresh Wankhede',
-    certificateNumber: 'GP/2026/004812',
-  },
-];
-
-const SEED_COMPLAINTS: DbComplaint[] = [
-  {
-    id: 'comp-1',
-    filerName: 'Ram Pawar',
-    category: 'Water Supply',
-    description: 'No water supply in Ward 1 pipeline since last 2 days.',
-    ward_no: 1,
-    status: 'OPEN',
-    createdAt: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: 'comp-2',
-    filerName: 'Anil Shinde',
-    category: 'Roads & Sanitation',
-    description: 'Pothole blockages at Ward 2 main intersection causing minor traffic accidents.',
-    ward_no: 2,
-    status: 'IN_PROGRESS',
-    createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-];
-
-const SEED_AUDIT_LOGS: DbAuditLog[] = [
-  {
-    id: 'log-1',
-    userId: 'user-super-admin',
-    userName: 'Suresh Wankhede',
-    userRole: 'SUPER_ADMIN',
-    action: 'SYSTEM_BOOT',
-    details: 'Database seeding completed successfully.',
-    ipAddress: '127.0.0.1',
-    createdAt: new Date().toISOString(),
-  },
-];
-
+// ─── DB SEEDING UTILITY ────────────────────────────────────────────────────────
+// Run during initDb to populate PostgreSQL if no user table records exist.
 export async function initDb(): Promise<void> {
   try {
-    await fs.access(DB_FILE);
-  } catch {
-    const defaultData: DatabaseSchema = {
-      users: SEED_USERS,
-      settings: DEFAULT_SETTINGS,
-      auditLogs: SEED_AUDIT_LOGS,
-      certificates: SEED_CERTIFICATES,
-      complaints: SEED_COMPLAINTS,
-    };
-    await fs.writeFile(DB_FILE, JSON.stringify(defaultData, null, 2));
+    const userCount = await prisma.user.count();
+    if (userCount > 0) return; // DB already has data
+
+    const hashedPin = await bcrypt.hash('1234', 10);
+
+    // 1. Create Default Config Settings
+    const defaultGp = await prisma.gpConfig.create({
+      data: {
+        gp_name: 'Wandhale Gram Panchayat',
+        gp_name_marathi: 'वांधळे ग्रामपंचायत',
+        district: 'Nagpur',
+        taluka: 'Ramtek',
+        state: 'Maharashtra',
+        pincode: '441106',
+        address: 'Gram Panchayat Office, Wandhale, Ramtek, Nagpur',
+        population: 5240,
+        ward_count: 6,
+        theme_color: '#FF6600',
+        sms_provider: 'MSG91',
+        sms_api_key: 'MOCK_API_KEY_12345',
+        sms_sender_id: 'GMPNCH',
+        enable_aadhaar_verify: true,
+        enable_digilocker: false,
+        enable_dsc_signing: false,
+        dsc_signer_name: 'Suresh Wankhede (Gram Sevak)',
+      },
+    });
+
+    // 2. Create Users
+    const superAdmin = await prisma.user.create({
+      data: {
+        name: 'Suresh Wankhede',
+        mobile: '9876543210',
+        hashed_pin: hashedPin,
+        role: PrismaUserRole.SUPER_ADMIN,
+        is_verified: true,
+        consent_given: true,
+        consent_given_at: new Date(),
+      },
+    });
+
+    const adminWard1 = await prisma.user.create({
+      data: {
+        name: 'Ramesh Patil',
+        mobile: '9876543211',
+        hashed_pin: hashedPin,
+        role: PrismaUserRole.ADMIN,
+        ward_no: 1,
+        is_verified: true,
+        consent_given: true,
+        consent_given_at: new Date(),
+      },
+    });
+
+    await prisma.user.create({
+      data: {
+        name: 'Maruti Rao',
+        mobile: '9876543212',
+        hashed_pin: hashedPin,
+        role: PrismaUserRole.ADMIN,
+        ward_no: 2,
+        is_verified: true,
+        consent_given: true,
+        consent_given_at: new Date(),
+      },
+    });
+
+    const citizenUser = await prisma.user.create({
+      data: {
+        name: 'Ram Pawar',
+        mobile: '9876543213',
+        hashed_pin: hashedPin,
+        role: PrismaUserRole.USER,
+        ward_no: 1,
+        is_verified: true,
+        consent_given: true,
+        consent_given_at: new Date(),
+      },
+    });
+
+    // Link default GP config sarpanch/gramsevak FKs
+    await prisma.gpConfig.update({
+      where: { id: defaultGp.id },
+      data: {
+        sarpanch_user_id: adminWard1.id,
+        gramsevak_user_id: superAdmin.id,
+      },
+    });
+
+    // 3. Create Certificates
+    await prisma.certificateApplication.createMany({
+      data: [
+        {
+          user_id: citizenUser.id,
+          type: CertificateType.INCOME,
+          applicant_name: 'Ram Pawar',
+          applicant_name_mr: 'राम पवार',
+          address: 'Ward No 1, Wandhale',
+          status: ApplicationStatus.PENDING,
+          supporting_docs: '[]',
+          ward_no: 1,
+        },
+        {
+          user_id: citizenUser.id,
+          type: CertificateType.BIRTH,
+          applicant_name: 'Sanjay Deshmukh',
+          applicant_name_mr: 'संजय देशमुख',
+          address: 'Ward No 2, Wandhale',
+          status: ApplicationStatus.PENDING,
+          supporting_docs: '[]',
+          ward_no: 2,
+        },
+        {
+          user_id: citizenUser.id,
+          type: CertificateType.DOMICILE,
+          applicant_name: 'Sunita Gadkari',
+          applicant_name_mr: 'सुनीता गडकरी',
+          address: 'Ward No 1, Wandhale',
+          status: ApplicationStatus.APPROVED,
+          supporting_docs: '[]',
+          ward_no: 1,
+          approved_at: new Date(),
+          approved_by: superAdmin.id,
+          certificate_number: 'GP/2026/004812',
+        },
+      ],
+    });
+
+    // 4. Create Complaints
+    await prisma.complaint.createMany({
+      data: [
+        {
+          user_id: citizenUser.id,
+          category: 'Water Supply',
+          description: 'No water supply in Ward 1 pipeline since last 2 days.',
+          ward_no: 1,
+          status: ComplaintStatus.OPEN,
+          photo_urls: '[]',
+        },
+        {
+          user_id: citizenUser.id,
+          category: 'Roads & Sanitation',
+          description: 'Pothole blockages at Ward 2 main intersection causing minor traffic accidents.',
+          ward_no: 2,
+          status: ComplaintStatus.IN_PROGRESS,
+          photo_urls: '[]',
+        },
+      ],
+    });
+
+    // 5. Create Initial Audit Logs
+    await prisma.auditLog.create({
+      data: {
+        user_id: superAdmin.id,
+        action: 'SYSTEM_BOOT',
+        entity_type: 'SYSTEM',
+        entity_id: 'SYSTEM_ID',
+        new_value: { info: 'System database initialized with seeded PostgreSQL values' },
+        ip_address: '127.0.0.1',
+      },
+    });
+
+    console.log('PostgreSQL database seeded successfully with initial profiles!');
+  } catch (error) {
+    console.error('Database initialization seed error:', error);
   }
-}
-
-async function readDb(): Promise<DatabaseSchema> {
-  await initDb();
-  const raw = await fs.readFile(DB_FILE, 'utf-8');
-  return JSON.parse(raw);
-}
-
-async function writeDb(data: DatabaseSchema): Promise<void> {
-  await fs.writeFile(DB_FILE, JSON.stringify(data, null, 2));
 }
 
 // ─── Users Queries ─────────────────────────────────────────────────────────────
 export async function getUsers(): Promise<DbUser[]> {
-  const db = await readDb();
-  return db.users;
+  const users = await prisma.user.findMany();
+  return users.map((u: any) => ({
+    id: u.id,
+    fullName: u.name,
+    mobile: u.mobile,
+    hashedPin: u.hashed_pin,
+    role: u.role as UserRole,
+    ward_no: u.ward_no ?? undefined,
+    createdAt: u.created_at.toISOString(),
+  }));
 }
 
 export async function findUserByMobile(mobile: string): Promise<DbUser | null> {
-  const users = await getUsers();
-  return users.find((u) => u.mobile === mobile) ?? null;
+  const u = await prisma.user.findUnique({ where: { mobile } });
+  if (!u) return null;
+  return {
+    id: u.id,
+    fullName: u.name,
+    mobile: u.mobile,
+    hashedPin: u.hashed_pin,
+    role: u.role as UserRole,
+    ward_no: u.ward_no ?? undefined,
+    createdAt: u.created_at.toISOString(),
+  };
 }
 
 export async function saveUser(user: {
@@ -226,70 +266,157 @@ export async function saveUser(user: {
   hashedPin: string;
   role: UserRole;
   ward_no?: number;
+  aadhaar?: string;
 }): Promise<DbUser> {
-  const db = await readDb();
+  const u = await prisma.user.create({
+    data: {
+      name: user.fullName,
+      mobile: user.mobile,
+      hashed_pin: user.hashedPin,
+      role: user.role as PrismaUserRole,
+      ward_no: user.ward_no,
+      aadhaar_last4: user.aadhaar || null,
+      is_verified: true,
+      consent_given: true,
+      consent_given_at: new Date(),
+    },
+  });
 
-  const existing = db.users.find((u) => u.mobile === user.mobile);
-  if (existing) {
-    throw new Error('User with this mobile number already exists');
-  }
-
-  const newUser: DbUser = {
-    id: Date.now().toString(),
-    ...user,
-    createdAt: new Date().toISOString(),
+  return {
+    id: u.id,
+    fullName: u.name,
+    mobile: u.mobile,
+    hashedPin: u.hashed_pin,
+    role: u.role as UserRole,
+    ward_no: u.ward_no ?? undefined,
+    createdAt: u.created_at.toISOString(),
   };
-
-  db.users.push(newUser);
-  await writeDb(db);
-  return newUser;
 }
 
 // ─── Settings Queries ──────────────────────────────────────────────────────────
 export async function getSettings(): Promise<DbSettings> {
-  const db = await readDb();
-  return db.settings;
+  let config = await prisma.gpConfig.findFirst();
+  if (!config) {
+    // Fallback if config is missing
+    config = await prisma.gpConfig.create({
+      data: {
+        gp_name: 'Wandhale Gram Panchayat',
+        gp_name_marathi: 'वांधळे ग्रामपंचायत',
+        district: 'Nagpur',
+        taluka: 'Ramtek',
+        pincode: '441106',
+        address: 'Wandhale',
+        population: 5240,
+        ward_count: 6,
+      },
+    });
+  }
+
+  return {
+    smsProvider: config.sms_provider,
+    smsApiKey: config.sms_api_key,
+    smsSenderId: config.sms_sender_id,
+    enableAadhaarVerification: config.enable_aadhaar_verify,
+    enableDigilockerSync: config.enable_digilocker,
+    enableDscSigning: config.enable_dsc_signing,
+    dscSignerName: config.dsc_signer_name,
+  };
 }
 
 export async function saveSettings(settings: DbSettings): Promise<void> {
-  const db = await readDb();
-  db.settings = settings;
-  await writeDb(db);
+  const config = await prisma.gpConfig.findFirst();
+  if (!config) return;
+
+  await prisma.gpConfig.update({
+    where: { id: config.id },
+    data: {
+      sms_provider: settings.smsProvider,
+      sms_api_key: settings.smsApiKey,
+      sms_sender_id: settings.smsSenderId,
+      enable_aadhaar_verify: settings.enableAadhaarVerification,
+      enable_digilocker: settings.enableDigilockerSync,
+      enable_dsc_signing: settings.enableDscSigning,
+      dsc_signer_name: settings.dscSignerName,
+    },
+  });
 }
 
 // ─── Audit Log Queries ─────────────────────────────────────────────────────────
 export async function getAuditLogs(): Promise<DbAuditLog[]> {
-  const db = await readDb();
-  return db.auditLogs;
+  const logs = await prisma.auditLog.findMany({
+    include: { user: true },
+    orderBy: { created_at: 'desc' },
+  });
+
+  return logs.map((l: any) => ({
+    id: l.id,
+    userId: l.user_id,
+    userName: l.user.name,
+    userRole: l.user.role as UserRole,
+    action: l.action,
+    details: `${l.entity_type} Update. Details: ${JSON.stringify(l.new_value)}`,
+    ipAddress: l.ip_address || '127.0.0.1',
+    createdAt: l.created_at.toISOString(),
+  }));
 }
 
 export async function addAuditLog(log: Omit<DbAuditLog, 'id' | 'createdAt'>): Promise<void> {
-  const db = await readDb();
-  const newLog: DbAuditLog = {
-    id: 'log-' + Date.now().toString(),
-    ...log,
-    createdAt: new Date().toISOString(),
-  };
-  db.auditLogs.unshift(newLog); // Put new logs first
-  await writeDb(db);
+  await prisma.auditLog.create({
+    data: {
+      user_id: log.userId,
+      action: log.action,
+      entity_type: 'ACTION_LOG',
+      entity_id: log.userId,
+      new_value: { details: log.details },
+      ip_address: log.ipAddress,
+    },
+  });
 }
 
 // ─── Certificates Queries ──────────────────────────────────────────────────────
 export async function getCertificates(): Promise<DbCertificate[]> {
-  const db = await readDb();
-  return db.certificates;
+  const certs = await prisma.certificateApplication.findMany({
+    include: { applicant: true },
+    orderBy: { applied_at: 'desc' },
+  });
+
+  return certs.map((c: any) => ({
+    id: c.id,
+    applicantName: c.applicant.name,
+    applicantNameMr: c.applicant_name_mr,
+    type: c.type.toString(),
+    status: c.status as DbCertificate['status'],
+    ward_no: c.ward_no ?? 1,
+    appliedAt: c.applied_at.toISOString(),
+    approvedAt: c.approved_at?.toISOString(),
+    approvedBy: c.approved_by || undefined,
+    certificateNumber: c.certificate_number || undefined,
+  }));
 }
 
 export async function saveCertificate(cert: Omit<DbCertificate, 'id' | 'appliedAt'>): Promise<DbCertificate> {
-  const db = await readDb();
-  const newCert: DbCertificate = {
-    id: 'cert-' + Date.now().toString(),
-    ...cert,
-    appliedAt: new Date().toISOString(),
+  const c = await prisma.certificateApplication.create({
+    data: {
+      user_id: cert.approvedBy || 'user-citizen', // default reference
+      type: cert.type as CertificateType,
+      applicant_name: cert.applicantName,
+      applicant_name_mr: cert.applicantNameMr,
+      address: 'Ward No ' + cert.ward_no + ', Wandhale',
+      status: cert.status as ApplicationStatus,
+      supporting_docs: '[]',
+      ward_no: cert.ward_no,
+    },
+  });
+
+  return {
+    id: c.id,
+    applicantName: cert.applicantName,
+    applicantNameMr: c.applicant_name_mr,
+    type: c.type,
+    status: cert.status,
+    ward_no: c.ward_no ?? 1,
+    appliedAt: c.applied_at.toISOString(),
   };
-  db.certificates.unshift(newCert);
-  await writeDb(db);
-  return newCert;
 }
 
 export async function updateCertificateStatus(
@@ -297,45 +424,86 @@ export async function updateCertificateStatus(
   status: DbCertificate['status'],
   updaterName: string
 ): Promise<void> {
-  const db = await readDb();
-  const cert = db.certificates.find((c) => c.id === certId);
-  if (!cert) throw new Error('Certificate application not found');
+  const user = await prisma.user.findFirst({ where: { name: updaterName } });
 
-  cert.status = status;
+  const updateData: {
+    status: ApplicationStatus;
+    approved_at?: Date;
+    approved_by?: string;
+    certificate_number?: string;
+  } = {
+    status: status as ApplicationStatus,
+  };
+
   if (status === 'APPROVED') {
-    cert.approvedAt = new Date().toISOString();
-    cert.approvedBy = updaterName;
-    cert.certificateNumber = 'GP/2026/' + Math.floor(100000 + Math.random() * 900000).toString();
+    updateData.approved_at = new Date();
+    updateData.approved_by = user?.id;
+    updateData.certificate_number = 'GP/2026/' + Math.floor(100000 + Math.random() * 900000).toString();
   }
-  await writeDb(db);
+
+  await prisma.certificateApplication.update({
+    where: { id: certId },
+    data: updateData,
+  });
 }
 
 // ─── Complaints Queries ────────────────────────────────────────────────────────
 export async function getComplaints(): Promise<DbComplaint[]> {
-  const db = await readDb();
-  return db.complaints;
+  const comps = await prisma.complaint.findMany({
+    include: { filer: true },
+    orderBy: { created_at: 'desc' },
+  });
+
+  return comps.map((c: any) => ({
+    id: c.id,
+    filerName: c.filer.name,
+    category: c.category,
+    description: c.description,
+    ward_no: c.ward_no ?? 1,
+    status: c.status as DbComplaint['status'],
+    createdAt: c.created_at.toISOString(),
+    latitude: c.geo_lat ? Number(c.geo_lat) : undefined,
+    longitude: c.geo_lng ? Number(c.geo_lng) : undefined,
+  }));
 }
 
 export async function saveComplaint(complaint: Omit<DbComplaint, 'id' | 'createdAt'>): Promise<DbComplaint> {
-  const db = await readDb();
-  const newComp: DbComplaint = {
-    id: 'comp-' + Date.now().toString(),
-    ...complaint,
-    createdAt: new Date().toISOString(),
+  const user = await prisma.user.findFirst({ where: { name: complaint.filerName } });
+
+  const c = await prisma.complaint.create({
+    data: {
+      user_id: user?.id || 'user-citizen',
+      category: complaint.category,
+      description: complaint.description,
+      ward_no: complaint.ward_no,
+      status: complaint.status as ComplaintStatus,
+      geo_lat: complaint.latitude || null,
+      geo_lng: complaint.longitude || null,
+      photo_urls: '[]',
+    },
+  });
+
+  return {
+    id: c.id,
+    filerName: complaint.filerName,
+    category: complaint.category,
+    description: complaint.description,
+    ward_no: c.ward_no ?? 1,
+    status: complaint.status,
+    createdAt: c.created_at.toISOString(),
+    latitude: c.geo_lat ? Number(c.geo_lat) : undefined,
+    longitude: c.geo_lng ? Number(c.geo_lng) : undefined,
   };
-  db.complaints.unshift(newComp);
-  await writeDb(db);
-  return newComp;
 }
 
 export async function updateComplaintStatus(
   complaintId: string,
   status: DbComplaint['status']
 ): Promise<void> {
-  const db = await readDb();
-  const complaint = db.complaints.find((c) => c.id === complaintId);
-  if (!complaint) throw new Error('Complaint not found');
-
-  complaint.status = status;
-  await writeDb(db);
+  await prisma.complaint.update({
+    where: { id: complaintId },
+    data: {
+      status: status as ComplaintStatus,
+    },
+  });
 }

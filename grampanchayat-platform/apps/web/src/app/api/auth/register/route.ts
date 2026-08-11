@@ -12,7 +12,7 @@ const ALLOWED_ROLES: UserRole[] = ['SUPER_ADMIN', 'ADMIN', 'USER'];
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { fullName, mobile, pin, role } = body;
+    const { fullName, mobile, pin, role, aadhaar } = body;
 
     // ── Validation ────────────────────────────────────────────────────────────
     if (!fullName || !mobile || !pin) {
@@ -36,6 +36,13 @@ export async function POST(request: Request) {
       );
     }
 
+    if (aadhaar && !/^\d{4}$/.test(aadhaar)) {
+      return NextResponse.json(
+        { error: 'Aadhaar must be exactly the last 4 digits' },
+        { status: 400 }
+      );
+    }
+
     // ── Role guard ────────────────────────────────────────────────────────────
     // Public registration always creates a USER.
     // Higher roles are set only via admin panel (not here).
@@ -46,7 +53,7 @@ export async function POST(request: Request) {
     const hashedPin = await bcrypt.hash(pin, 10);
 
     // ── Save ──────────────────────────────────────────────────────────────────
-    await saveUser({ fullName, mobile, hashedPin, role: assignedRole });
+    await saveUser({ fullName, mobile, hashedPin, role: assignedRole, aadhaar });
 
     return NextResponse.json(
       { message: 'Registration successful! Please log in.' },

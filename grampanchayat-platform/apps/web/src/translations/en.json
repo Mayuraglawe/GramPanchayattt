@@ -1,0 +1,56 @@
+{
+  "common": {
+    "dashboard": "Dashboard",
+    "logout": "Logout",
+    "welcome": "Welcome",
+    "save": "Save Settings",
+    "cancel": "Cancel",
+    "back": "Back to Dashboard",
+    "loading": "Loading...",
+    "status": "Status",
+    "actions": "Actions",
+    "approve": "Approve",
+    "reject": "Reject",
+    "review": "Review",
+    "submit": "Submit"
+  },
+  "citizen": {
+    "title": "Citizen Portal",
+    "subtitle": "Access and track your Gram Panchayat digital requests.",
+    "applyCert": "Apply for Certificate",
+    "applyCertDesc": "Request Birth, Income, Domicile or Caste certificates.",
+    "fileGrievance": "File a Grievance",
+    "fileGrievanceDesc": "Report sanitation, roads or pipeline damages directly.",
+    "yourCerts": "Your Certificate Requests",
+    "yourComplaints": "Your Active Grievances",
+    "appliedOn": "Applied on",
+    "certModalTitle": "Apply for Digital Certificate",
+    "certType": "Certificate Type",
+    "applicantMr": "Applicant Name (Marathi)",
+    "grievanceModalTitle": "File Grievance Ticket",
+    "grievanceCategory": "Grievance Category",
+    "desc": "Description"
+  },
+  "admin": {
+    "title": "Admin Dashboard",
+    "subtitle": "Sarpanch / Operator — Approvals & management for Ward",
+    "pendingCerts": "Pending Certificates (Ward)",
+    "activeComplaints": "Active Complaints (Ward)",
+    "assignedWard": "Assigned Ward",
+    "certApprovalsTitle": "Certificate Approvals Hub",
+    "reviewQueueSubtitle": "Verify citizen-submitted documents for Ward",
+    "grievanceTitle": "Grievance Management Hub",
+    "grievanceQueueSubtitle": "Review and act on citizen-submitted grievances for Ward"
+  },
+  "superAdmin": {
+    "title": "Super Admin Dashboard",
+    "subtitle": "Full platform control — Gram Sevak access",
+    "totalUsers": "Total Users",
+    "pendingCertsAll": "Pending Certificates (All)",
+    "openComplaintsAll": "Open Complaints (All)",
+    "configTitle": "System Config Settings",
+    "settingsSubtitle": "Configure SMS Gateway APIs, DSC Digital Signatures, and Aadhaar Verifications.",
+    "auditLogsTitle": "Immutable System Audit Logs",
+    "auditLogsSubtitle": "RTI Security Audit Trail of all human actions and configuration overrides."
+  }
+}
