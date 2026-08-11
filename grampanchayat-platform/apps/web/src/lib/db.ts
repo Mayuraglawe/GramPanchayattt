@@ -1,7 +1,39 @@
 import { prisma } from './prisma';
 import type { UserRole } from './auth';
-import { UserRole as PrismaUserRole, CertificateType, ApplicationStatus, ComplaintStatus } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+
+export const PrismaUserRole = {
+  SUPER_ADMIN: 'SUPER_ADMIN',
+  ADMIN: 'ADMIN',
+  USER: 'USER',
+} as const;
+export type PrismaUserRole = typeof PrismaUserRole[keyof typeof PrismaUserRole];
+
+export const CertificateType = {
+  BIRTH: 'BIRTH',
+  DEATH: 'DEATH',
+  INCOME: 'INCOME',
+  CASTE: 'CASTE',
+  DOMICILE: 'DOMICILE',
+  RESIDENCE: 'RESIDENCE',
+} as const;
+export type CertificateType = typeof CertificateType[keyof typeof CertificateType];
+
+export const ApplicationStatus = {
+  PENDING: 'PENDING',
+  UNDER_REVIEW: 'UNDER_REVIEW',
+  APPROVED: 'APPROVED',
+  REJECTED: 'REJECTED',
+} as const;
+export type ApplicationStatus = typeof ApplicationStatus[keyof typeof ApplicationStatus];
+
+export const ComplaintStatus = {
+  OPEN: 'OPEN',
+  IN_PROGRESS: 'IN_PROGRESS',
+  RESOLVED: 'RESOLVED',
+  CLOSED: 'CLOSED',
+} as const;
+export type ComplaintStatus = typeof ComplaintStatus[keyof typeof ComplaintStatus];
 
 // ─── Interfaces (Mapped to original UI/API types) ─────────────────────────────
 export interface DbUser {
