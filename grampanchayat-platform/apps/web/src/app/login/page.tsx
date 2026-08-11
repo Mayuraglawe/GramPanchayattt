@@ -1,24 +1,91 @@
+'use client';
+
 import Link from 'next/link';
 import Image from 'next/image';
+import { useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Suspense } from 'react';
 
-export default function LoginPage() {
+function LoginForm() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const registered = searchParams.get('registered') === 'true';
+  const from = searchParams.get('from');
+
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setError('');
+    setIsLoading(true);
+
+    const formData = new FormData(e.currentTarget);
+
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mobile: formData.get('mobile'),
+          pin: formData.get('pin'),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Login failed');
+      }
+
+      // Redirect to original destination or role-based dashboard
+      router.push(from || data.redirectTo || '/dashboard/user');
+      router.refresh();
+
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-surface-container flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md flex flex-col items-center">
         <div className="flex justify-center mb-6">
-          <Image alt="Gram Panchayat Emblem" className="h-16 w-16 object-contain" width={64} height={64} src="https://lh3.googleusercontent.com/aida-public/AB6AXuDwOt3btzGAHdEQqUYDDZKkpFf86hD13iuogwK5sJ6n1mHhFpvadD8fyKz3ofQitSvIvBCLiU2NPyoxgDk7RSvGKrf4kVNScPjE8n0G4SfDiAqxu12bjV7FyuoFMElaBCruoRSICbBWHnyOz2kn-Vy0sRzowqH1n3_IvlafFpvweNAkhbIMcTlmt59uiekLrgEFBfwmmIs3I1pEqxhL-hViuTS6SzNmg1mY_cD3-F7ILpzHTIINaSE"/>
+          <Image
+            alt="Gram Panchayat Emblem"
+            className="h-16 w-16 object-contain"
+            width={64} height={64}
+            src="https://lh3.googleusercontent.com/aida-public/AB6AXuDwOt3btzGAHdEQqUYDDZKkpFf86hD13iuogwK5sJ6n1mHhFpvadD8fyKz3ofQitSvIvBCLiU2NPyoxgDk7RSvGKrf4kVNScPjE8n0G4SfDiAqxu12bjV7FyuoFMElaBCruoRSICbBWHnyOz2kn-Vy0sRzowqH1n3_IvlafFpvweNAkhbIMcTlmt59uiekLrgEFBfwmmIs3I1pEqxhL-hViuTS6SzNmg1mY_cD3-F7ILpzHTIINaSE"
+          />
         </div>
         <h2 className="mt-2 text-center text-headline-lg font-headline-lg text-on-surface">
-          Citizen Login
+          Sign In
         </h2>
         <p className="mt-2 text-center text-body-md text-on-surface-variant">
-          Sign in to access digital government services
+          Gram Panchayat Digital Services
         </p>
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-surface dark:bg-inverse-surface py-8 px-4 shadow-sm border border-outline-variant sm:rounded-xl sm:px-10">
-          <form className="space-y-6" action="#" method="POST">
+
+          {/* Success banner after registration */}
+          {registered && (
+            <div className="mb-4 p-3 bg-green-50 border border-green-200 text-green-700 text-sm rounded-md text-center">
+              ✅ Registration successful! Please sign in.
+            </div>
+          )}
+
+          {/* Error banner */}
+          {error && (
+            <div className="mb-4 p-3 bg-red-100 border border-red-200 text-red-700 text-sm rounded-md">
+              {error}
+            </div>
+          )}
+
+          <form className="space-y-6" onSubmit={handleSubmit}>
             <div>
               <label htmlFor="mobile" className="block text-label-md font-label-md text-on-surface">
                 Mobile Number
@@ -28,6 +95,9 @@ export default function LoginPage() {
                   id="mobile"
                   name="mobile"
                   type="tel"
+                  inputMode="numeric"
+                  pattern="\d{10}"
+                  maxLength={10}
                   required
                   className="appearance-none block w-full px-3 py-2 border border-outline-variant rounded-md shadow-sm placeholder-on-surface-variant/50 focus:outline-none focus:ring-primary focus:border-primary sm:text-body-md text-on-surface bg-surface-container-lowest"
                   placeholder="10-digit mobile number"
@@ -54,32 +124,13 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <input
-                  id="remember-me"
-                  name="remember-me"
-                  type="checkbox"
-                  className="h-4 w-4 text-primary focus:ring-primary border-outline-variant rounded bg-surface-container-lowest"
-                />
-                <label htmlFor="remember-me" className="ml-2 block text-label-md text-on-surface-variant">
-                  Remember me
-                </label>
-              </div>
-
-              <div className="text-label-md">
-                <a href="#" className="font-label-md text-primary hover:text-primary-container transition-colors">
-                  Forgot your PIN?
-                </a>
-              </div>
-            </div>
-
             <div>
               <button
                 type="submit"
-                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-full shadow-sm text-label-md font-label-md text-on-primary bg-primary hover:bg-primary-container focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors"
+                disabled={isLoading}
+                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-full shadow-sm text-label-md font-label-md text-on-primary bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Sign in
+                {isLoading ? 'Signing in…' : 'Sign In'}
               </button>
             </div>
           </form>
@@ -104,7 +155,7 @@ export default function LoginPage() {
                 Create a new account
               </Link>
             </div>
-            
+
             <div className="mt-6 text-center">
               <Link href="/" className="text-label-md font-label-md text-on-surface-variant hover:text-primary transition-colors flex items-center justify-center gap-1">
                 <span className="material-symbols-outlined text-[18px]">arrow_back</span>
@@ -115,5 +166,13 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
   );
 }

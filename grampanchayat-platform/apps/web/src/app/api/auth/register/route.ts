@@ -1,65 +1,65 @@
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { saveUser } from '@/lib/db';
+import type { UserRole } from '@/lib/auth';
+
+// ─── Role assignment ───────────────────────────────────────────────────────────
+// Default: USER (Citizen).
+// SUPER_ADMIN and ADMIN are only assigned by an existing SUPER_ADMIN
+// through the admin panel — never via self-registration.
+const ALLOWED_ROLES: UserRole[] = ['SUPER_ADMIN', 'ADMIN', 'USER'];
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { fullName, mobile, pin } = body;
+    const { fullName, mobile, pin, role } = body;
 
-    // 1. Basic validation
+    // ── Validation ────────────────────────────────────────────────────────────
     if (!fullName || !mobile || !pin) {
       return NextResponse.json(
-        { error: 'Missing required fields' },
+        { error: 'fullName, mobile and pin are required' },
         { status: 400 }
       );
     }
 
-    if (pin.length !== 4 || !/^\d{4}$/.test(pin)) {
+    if (!/^\d{10}$/.test(mobile)) {
+      return NextResponse.json(
+        { error: 'Mobile must be a 10-digit number' },
+        { status: 400 }
+      );
+    }
+
+    if (!/^\d{4}$/.test(pin)) {
       return NextResponse.json(
         { error: 'PIN must be exactly 4 digits' },
         { status: 400 }
       );
     }
 
-    // 2. Hash the PIN using bcrypt (automatically salts it)
-    // The cost factor '10' is standard (determines how slow it is to compute)
-    const saltRounds = 10;
-    const hashedPin = await bcrypt.hash(pin, saltRounds);
+    // ── Role guard ────────────────────────────────────────────────────────────
+    // Public registration always creates a USER.
+    // Higher roles are set only via admin panel (not here).
+    const assignedRole: UserRole =
+      role && ALLOWED_ROLES.includes(role) && role === 'USER' ? 'USER' : 'USER';
 
-    // 3. Save to database
-    // Note: We only save the hashedPin, we DO NOT save the plain text PIN
-    const newUser = {
-      fullName,
-      mobile,
-      hashedPin,
-      // You can add aadhaar here if provided
-      role: 'citizen'
-    };
+    // ── Hash PIN ──────────────────────────────────────────────────────────────
+    const hashedPin = await bcrypt.hash(pin, 10);
 
-    await saveUser(newUser);
+    // ── Save ──────────────────────────────────────────────────────────────────
+    await saveUser({ fullName, mobile, hashedPin, role: assignedRole });
 
-    // 4. Return success (DO NOT return the hash in the response)
     return NextResponse.json(
-      { message: 'Registration successful!' },
+      { message: 'Registration successful! Please log in.' },
       { status: 201 }
     );
 
   } catch (error: unknown) {
-    console.error('Registration error:', error);
-    
-    // Handle specific errors like duplicate mobile number
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    if (errorMessage.includes('already exists')) {
-      return NextResponse.json(
-        { error: errorMessage },
-        { status: 409 } // 409 Conflict
-      );
-    }
+    console.error('[register]', error);
+    const msg = error instanceof Error ? error.message : 'Internal server error';
 
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    if (msg.includes('already exists')) {
+      return NextResponse.json({ error: msg }, { status: 409 });
+    }
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

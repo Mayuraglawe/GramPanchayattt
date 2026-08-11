@@ -1,40 +1,72 @@
 import fs from 'fs/promises';
 import path from 'path';
+import type { UserRole } from './auth';
 
-// This is a simple mock database that saves data to a local JSON file.
-// In a real application, you would use a real database like PostgreSQL or MongoDB.
+// ─── Types ────────────────────────────────────────────────────────────────────
+export interface DbUser {
+  id: string;
+  fullName: string;
+  mobile: string;
+  hashedPin: string;
+  role: UserRole;
+  createdAt: string;
+}
+
+// ─── Storage ──────────────────────────────────────────────────────────────────
+// NOTE: This is a local JSON mock for development.
+// In production this will be replaced with Prisma + PostgreSQL.
 const DB_FILE = path.join(process.cwd(), 'db.json');
 
-export async function initDb() {
+async function initDb(): Promise<void> {
   try {
     await fs.access(DB_FILE);
   } catch {
-    // File doesn't exist, create it with empty users array
     await fs.writeFile(DB_FILE, JSON.stringify({ users: [] }, null, 2));
   }
 }
 
-export async function getUsers() {
+async function readDb(): Promise<{ users: DbUser[] }> {
   await initDb();
-  const data = await fs.readFile(DB_FILE, 'utf-8');
-  return JSON.parse(data).users;
+  const raw = await fs.readFile(DB_FILE, 'utf-8');
+  return JSON.parse(raw);
 }
 
-export async function saveUser(user: { fullName: string; mobile: string; hashedPin: string; role?: string }) {
+async function writeDb(data: { users: DbUser[] }): Promise<void> {
+  await fs.writeFile(DB_FILE, JSON.stringify(data, null, 2));
+}
+
+// ─── Queries ──────────────────────────────────────────────────────────────────
+
+export async function getUsers(): Promise<DbUser[]> {
+  const db = await readDb();
+  return db.users;
+}
+
+export async function findUserByMobile(mobile: string): Promise<DbUser | null> {
   const users = await getUsers();
-  
-  // Check if mobile already exists
-  const existingUser = users.find((u: { mobile: string }) => u.mobile === user.mobile);
-  if (existingUser) {
+  return users.find((u) => u.mobile === mobile) ?? null;
+}
+
+export async function saveUser(user: {
+  fullName: string;
+  mobile: string;
+  hashedPin: string;
+  role: UserRole;
+}): Promise<DbUser> {
+  const db = await readDb();
+
+  const existing = db.users.find((u) => u.mobile === user.mobile);
+  if (existing) {
     throw new Error('User with this mobile number already exists');
   }
 
-  users.push({
-    ...user,
+  const newUser: DbUser = {
     id: Date.now().toString(),
-    createdAt: new Date().toISOString()
-  });
+    ...user,
+    createdAt: new Date().toISOString(),
+  };
 
-  await fs.writeFile(DB_FILE, JSON.stringify({ users }, null, 2));
-  return user;
+  db.users.push(newUser);
+  await writeDb(db);
+  return newUser;
 }
