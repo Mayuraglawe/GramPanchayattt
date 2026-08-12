@@ -16,3 +16,8 @@ pnpm-debug.log*
 
 # Generated SQL — keep locally, not in git
 packages/database/schema.sql
+
+# Documentation folder
+docs/
+grampanchayat-platform/docs/
+

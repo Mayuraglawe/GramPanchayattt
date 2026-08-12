@@ -14,11 +14,7 @@ const NAV_ITEMS = [
   { label: 'User Management',     href: '#',                                        icon: '👤', group: 'Platform', disabled: true },
 ];
 
-interface SuperAdminSidebarProps {
-  name: string;
-}
-
-export default function SuperAdminSidebar({ name }: SuperAdminSidebarProps) {
+export default function SuperAdminSidebar() {
   const pathname = usePathname();
   
   const renderItem = (item: typeof NAV_ITEMS[0]) => {

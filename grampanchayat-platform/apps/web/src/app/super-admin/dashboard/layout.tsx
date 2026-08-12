@@ -50,7 +50,7 @@ export default async function SuperAdminLayout({ children }: { children: React.R
 
       <div className="flex flex-1 pt-16">
         {/* Sidebar */}
-        <SuperAdminSidebar name={name} />
+        <SuperAdminSidebar />
 
         {/* Main Content — offset by sidebar width */}
         <div className="ml-64 flex-1 flex flex-col min-h-screen">
