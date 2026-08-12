@@ -1,4 +1,10 @@
 /* eslint-disable @next/next/no-img-element */
+import dynamic from 'next/dynamic';
+
+const VillageMap = dynamic(() => import('@/components/VillageMap'), {
+  ssr: false,
+  loading: () => <div className="w-full h-full bg-surface-variant animate-pulse flex items-center justify-center text-on-surface-variant text-sm">Loading map...</div>
+});
 
 export default function Home() {
   return (
@@ -15,8 +21,9 @@ export default function Home() {
               <a className="text-on-surface-variant dark:text-surface-variant hover:text-primary dark:hover:text-primary-fixed-dim transition-colors hover:bg-surface-container-low dark:hover:bg-surface-container-highest transition-all" href="#about">About</a>
               <a className="text-on-surface-variant dark:text-surface-variant hover:text-primary dark:hover:text-primary-fixed-dim transition-colors hover:bg-surface-container-low dark:hover:bg-surface-container-highest transition-all" href="#services">Services</a>
               <a className="text-on-surface-variant dark:text-surface-variant hover:text-primary dark:hover:text-primary-fixed-dim transition-colors hover:bg-surface-container-low dark:hover:bg-surface-container-highest transition-all" href="#notices">Notices</a>
-              <a className="text-on-surface-variant dark:text-surface-variant hover:text-primary dark:hover:text-primary-fixed-dim transition-colors hover:bg-surface-container-low dark:hover:bg-surface-container-highest transition-all" href="#schemes">Schemes</a>
+              <a className="text-on-surface-variant dark:text-surface-variant hover:text-primary dark:hover:text-primary-fixed-dim transition-colors hover:bg-surface-container-low dark:hover:bg-surface-container-highest transition-all" href="/schemes">Schemes</a>
               <a className="text-on-surface-variant dark:text-surface-variant hover:text-primary dark:hover:text-primary-fixed-dim transition-colors hover:bg-surface-container-low dark:hover:bg-surface-container-highest transition-all" href="#development">Development</a>
+              <a className="text-on-surface-variant dark:text-surface-variant hover:text-primary dark:hover:text-primary-fixed-dim transition-colors hover:bg-surface-container-low dark:hover:bg-surface-container-highest transition-all" href="/village-map">Map</a>
             </nav>
             <div className="flex items-center gap-sm">
               <button aria-label="Language" className="p-2 text-on-surface-variant hover:bg-surface-container-high rounded-full transition-colors hidden sm:block" title="Language">
@@ -25,6 +32,9 @@ export default function Home() {
               <button aria-label="Accessibility" className="p-2 text-on-surface-variant hover:bg-surface-container-high rounded-full transition-colors hidden sm:block" title="Accessibility Settings">
                 <span className="material-symbols-outlined" data-icon="settings_accessibility">settings_accessibility</span>
               </button>
+              <a className="border border-primary text-primary hover:bg-primary/5 font-label-md text-label-md py-2 px-4 rounded-full transition-colors whitespace-nowrap" href="/payments">
+                Quick Pay 💳
+              </a>
               <a className="bg-primary hover:bg-primary-container text-on-primary font-label-md text-label-md py-2 px-4 rounded-full transition-colors whitespace-nowrap" href="/login">
                 Citizen Login
               </a>
@@ -135,7 +145,7 @@ export default function Home() {
             <h3 className="text-headline-md font-headline-md text-on-surface text-[18px]">Complaints</h3>
             <p className="text-caption font-caption text-on-surface-variant mt-2">Register and track grievances.</p>
           </a>
-          <a className="group bg-surface-container-lowest border border-outline-variant hover:border-secondary/50 hover:shadow-md p-6 rounded-xl flex flex-col items-center text-center transition-all duration-300" href="#">
+          <a className="group bg-surface-container-lowest border border-outline-variant hover:border-secondary/50 hover:shadow-md p-6 rounded-xl flex flex-col items-center text-center transition-all duration-300" href="/schemes">
             <div className="w-16 h-16 rounded-full bg-secondary-container/30 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
               <span className="material-symbols-outlined text-secondary text-3xl" data-icon="savings">savings</span>
             </div>
@@ -267,8 +277,8 @@ export default function Home() {
                 </div>
               </li>
             </ul>
-            <div className="h-48 rounded-lg overflow-hidden border border-outline-variant relative bg-surface-variant flex items-center justify-center">
-              <img className="object-cover w-full h-full opacity-80" alt="Map" src="https://www.gstatic.com/labs-code/stitch/stitch-placeholder-300x300.svg"/>
+            <div className="h-48 rounded-lg overflow-hidden border border-outline-variant relative bg-surface-variant flex items-center justify-center z-0">
+              <VillageMap />
             </div>
           </div>
         </div>

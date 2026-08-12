@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { PrismaClient, AgentName, AgentActionLevel, NotificationChannel, NotificationStatus } from '@prisma/client';
 
 const prisma = new PrismaClient();

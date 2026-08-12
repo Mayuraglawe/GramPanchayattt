@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken, COOKIE_NAME, ROLE_DASHBOARD, ROUTE_ROLE_MAP } from '@/lib/auth';
 
 // ─── Routes that don't need auth ──────────────────────────────────────────────
-const PUBLIC_ROUTES = ['/', '/login', '/register', '/api/auth/login', '/api/auth/register'];
+const PUBLIC_ROUTES = ['/', '/login', '/register', '/api/auth/login', '/api/auth/register', '/payments', '/schemes', '/api/db-seed'];
 
 // ─── Helper: does a path start with any protected prefix ─────────────────────
 function getProtectedPrefix(pathname: string): string | null {
@@ -18,6 +18,7 @@ export async function middleware(request: NextRequest) {
   // ── Allow public routes & static assets ───────────────────────────────────
   if (
     PUBLIC_ROUTES.includes(pathname) ||
+    pathname.startsWith('/api/payments') ||
     pathname.startsWith('/_next') ||
     pathname.startsWith('/favicon') ||
     pathname.includes('.')

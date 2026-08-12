@@ -18,9 +18,9 @@ export const COOKIE_NAME = 'gp_token';
 
 // ─── Role → Dashboard redirect ────────────────────────────────────────────────
 export const ROLE_DASHBOARD: Record<UserRole, string> = {
-  SUPER_ADMIN: '/dashboard/super-admin',
-  ADMIN: '/dashboard/admin',
-  USER: '/dashboard/user',
+  SUPER_ADMIN: '/super-admin/dashboard',
+  ADMIN: '/admin/dashboard',
+  USER: '/user/dashboard',
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -44,7 +44,7 @@ export async function verifyToken(token: string): Promise<JWTPayload | null> {
 // ─── Role Access Matrix ───────────────────────────────────────────────────────
 // Which roles can access each dashboard level
 export const ROUTE_ROLE_MAP: Record<string, UserRole[]> = {
-  '/dashboard/super-admin': ['SUPER_ADMIN'],
-  '/dashboard/admin':       ['SUPER_ADMIN', 'ADMIN'],
-  '/dashboard/user':        ['SUPER_ADMIN', 'ADMIN', 'USER'],
+  '/super-admin': ['SUPER_ADMIN'],
+  '/admin':       ['SUPER_ADMIN', 'ADMIN'],
+  '/user':        ['SUPER_ADMIN', 'ADMIN', 'USER'],
 };
