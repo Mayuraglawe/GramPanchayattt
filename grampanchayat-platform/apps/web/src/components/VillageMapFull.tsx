@@ -34,10 +34,10 @@ export default function VillageMapFull({ selectedLocation, locations }: VillageM
     });
     L.Marker.prototype.options.icon = DefaultIcon;
 
-    // Initialize Map
+    // Initialize Map for Gram Panchayat Hudkeshwar Khurd
     const map = L.map(mapContainerRef.current, {
         zoomControl: true,
-    }).setView([21.097, 79.122], 14);
+    }).setView([21.085, 79.125], 15);
     
     mapInstanceRef.current = map;
 

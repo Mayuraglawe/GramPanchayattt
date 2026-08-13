@@ -257,13 +257,13 @@ export default function Home() {
         <div className="max-w-container-max mx-auto px-md lg:px-lg grid grid-cols-1 lg:grid-cols-2 gap-12">
           <div>
             <span className="text-primary font-bold text-label-md uppercase tracking-wider">Contact & Location</span>
-            <h2 className="text-headline-lg font-bold text-on-surface mt-2 mb-6">Gram Panchayat Office • कार्यालय माहिती</h2>
+            <h2 className="text-headline-lg font-bold text-on-surface mt-2 mb-6">Grampanchayt Hudkeshwar Khurd • कार्यालय माहिती</h2>
             <div className="space-y-4 mb-6">
               <div className="flex items-start gap-3">
                 <span className="material-symbols-outlined text-primary mt-1">location_on</span>
                 <div>
                   <span className="block font-semibold text-on-surface">Office Address</span>
-                  <span className="text-body-md text-on-surface-variant">Gram Panchayat Karyalaya, Main Road, State - 400001</span>
+                  <span className="text-body-md text-on-surface-variant">Grampanchayt Karyalaya, Hudkeshwar Khurd, District Nagpur, Maharashtra - 440034</span>
                 </div>
               </div>
               <div className="flex items-center gap-3">

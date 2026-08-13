@@ -15,43 +15,43 @@ import { MapLocation } from '@/components/VillageMapFull';
 const LOCATIONS: MapLocation[] = [
   {
     id: 'office',
-    name: 'Gram Panchayat Office',
-    lat: 21.097,
-    lng: 79.122,
+    name: 'Grampanchayt Hudkeshwar Khurd',
+    lat: 21.085,
+    lng: 79.125,
     type: 'office',
-    description: 'Main administrative building for Hudkeshwar Gram Panchayat.'
+    description: 'Main Gram Panchayat Administrative Karyalaya of Hudkeshwar Khurd, Nagpur.'
   },
   {
     id: 'school-1',
-    name: 'Zilla Parishad Primary School',
-    lat: 21.101,
-    lng: 79.118,
+    name: 'ZP Primary School (Hudkeshwar Khurd)',
+    lat: 21.088,
+    lng: 79.121,
     type: 'school',
-    description: 'Primary education center for Ward 1 and 2.'
+    description: 'Primary village school under Gram Panchayat Hudkeshwar Khurd.'
   },
   {
     id: 'phc',
-    name: 'Primary Health Centre',
-    lat: 21.092,
-    lng: 79.125,
+    name: 'Primary Sub-Health Centre',
+    lat: 21.082,
+    lng: 79.128,
     type: 'hospital',
-    description: '24/7 basic medical facilities and dispensary.'
+    description: 'Local healthcare center serving villagers of Hudkeshwar Khurd.'
   },
   {
-    id: 'ward-3',
-    name: 'Santoshi Nagar Chowk (Ward 3)',
-    lat: 21.103,
-    lng: 79.121,
+    id: 'ward-1',
+    name: 'Hudkeshwar Khurd Village Square (Ward 1)',
+    lat: 21.086,
+    lng: 79.124,
     type: 'ward',
-    description: 'Central gathering point and market area for Ward 3.'
+    description: 'Central village market and community gathering hall.'
   },
   {
-    id: 'ward-5',
-    name: 'Chandrakiran Nagar (Ward 5)',
-    lat: 21.090,
-    lng: 79.115,
+    id: 'ward-2',
+    name: 'New Colony Residential Area (Ward 2)',
+    lat: 21.081,
+    lng: 79.122,
     type: 'ward',
-    description: 'Residential zone with new water supply project.'
+    description: 'Residential area with Jal Jeevan tap water project.'
   }
 ];
 
