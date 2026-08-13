@@ -52,7 +52,7 @@ async function runGrievanceEscalationCheck() {
         // Trigger SMS notification alert
         await prisma.notification.create({
           data: {
-            user_id: comp.user_id,
+            user_id: comp.user_id as any,
             channel: NotificationChannel.SMS,
             recipient: '9876543210', // Sarpanch mobile
             message: `[Alert] Complaint ${comp.id} has been escalated to you due to SLA response delay.`,

@@ -2,7 +2,28 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken, COOKIE_NAME, ROLE_DASHBOARD, ROUTE_ROLE_MAP } from '@/lib/auth';
 
 // ─── Routes that don't need auth ──────────────────────────────────────────────
-const PUBLIC_ROUTES = ['/', '/login', '/register', '/api/auth/login', '/api/auth/register', '/payments', '/schemes', '/api/db-seed'];
+const PUBLIC_ROUTES = [
+  '/',
+  '/login',
+  '/register',
+  '/complaints',
+  '/certificates',
+  '/assets',
+  '/feedback',
+  '/track-status',
+  '/payments',
+  '/schemes',
+  '/village-map',
+  '/api/auth/login',
+  '/api/auth/register',
+  '/api/complaints',
+  '/api/certificates',
+  '/api/assets',
+  '/api/feedback',
+  '/api/track',
+  '/api/payments',
+  '/api/db-seed',
+];
 
 // ─── Helper: does a path start with any protected prefix ─────────────────────
 function getProtectedPrefix(pathname: string): string | null {
@@ -18,6 +39,19 @@ export async function middleware(request: NextRequest) {
   // ── Allow public routes & static assets ───────────────────────────────────
   if (
     PUBLIC_ROUTES.includes(pathname) ||
+    pathname.startsWith('/complaints') ||
+    pathname.startsWith('/certificates') ||
+    pathname.startsWith('/assets') ||
+    pathname.startsWith('/feedback') ||
+    pathname.startsWith('/track-status') ||
+    pathname.startsWith('/payments') ||
+    pathname.startsWith('/schemes') ||
+    pathname.startsWith('/village-map') ||
+    pathname.startsWith('/api/complaints') ||
+    pathname.startsWith('/api/certificates') ||
+    pathname.startsWith('/api/assets') ||
+    pathname.startsWith('/api/feedback') ||
+    pathname.startsWith('/api/track') ||
     pathname.startsWith('/api/payments') ||
     pathname.startsWith('/_next') ||
     pathname.startsWith('/favicon') ||

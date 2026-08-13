@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import Image from 'next/image';
+import Navbar from '@/components/Navbar';
 
 interface Bill {
   id: string;
@@ -170,31 +170,7 @@ export default function PaymentsPage() {
 
   return (
     <div className="min-h-screen bg-surface-container-lowest dark:bg-inverse-surface flex flex-col font-sans">
-      {/* HEADER */}
-      <header className="bg-surface dark:bg-surface-container-highest border-b border-outline-variant shadow-sm top-0 z-40 sticky">
-        <div className="flex items-center justify-between h-[72px] px-md lg:px-lg max-w-container-max mx-auto w-full">
-          <a className="flex items-center gap-sm group" href="/">
-            <Image
-              alt="Gram Panchayat Emblem"
-              className="h-12 w-12 object-contain"
-              src="https://lh3.googleusercontent.com/aida-public/AB6AXuDwOt3btzGAHdEQqUYDDZKkpFf86hD13iuogwK5sJ6n1mHhFpvadD8fyKz3ofQitSvIvBCLiU2NPyoxgDk7RSvGKrf4kVNScPjE8n0G4SfDiAqxu12bjV7FyuoFMElaBCruoRSICbBWHnyOz2kn-Vy0sRzowqH1n3_IvlafFpvweNAkhbIMcTlmt59uiekLrgEFBfwmmIs3I1pEqxhL-hViuTS6SzNmg1mY_cD3-F7ILpzHTIINaSE"
-              width={48}
-              height={48}
-            />
-            <div className="flex flex-col">
-              <span className="text-headline-md font-bold text-primary dark:text-primary-fixed-dim leading-none">ग्रामपंचायत</span>
-              <span className="text-caption text-on-surface-variant mt-1">Digital Billing Desk</span>
-            </div>
-          </a>
-          <a
-            className="border border-outline hover:bg-surface-container-high text-on-surface-variant font-label-md py-2 px-5 rounded-full transition-all flex items-center gap-1"
-            href="/"
-          >
-            <span className="material-symbols-outlined text-[18px]">arrow_back</span>
-            Back to Home
-          </a>
-        </div>
-      </header>
+      <Navbar />
 
       {/* BODY PORTAL */}
       <main className="flex-grow max-w-container-max w-full mx-auto px-md lg:px-lg py-xl flex flex-col gap-6">

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import dynamic from 'next/dynamic';
-import Link from 'next/link';
+import Navbar from '@/components/Navbar';
 
 // Dynamically import the map component with ssr disabled
 const VillageMapFull = dynamic(() => import('@/components/VillageMapFull'), {
@@ -69,22 +69,8 @@ export default function VillageMapPage() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-surface overflow-hidden">
-      {/* Minimal Header */}
-      <header className="bg-surface dark:bg-inverse-surface border-b border-outline-variant dark:border-outline shadow-sm flex items-center px-4 h-16 shrink-0 justify-between">
-        <div className="flex items-center gap-4">
-            <Link href="/" className="p-2 hover:bg-surface-container-high rounded-full transition-colors flex items-center justify-center">
-                <span className="material-symbols-outlined text-on-surface-variant">arrow_back</span>
-            </Link>
-            <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-primary text-2xl" data-icon="map">map</span>
-                <h1 className="text-title-lg font-title-lg text-on-surface">Interactive Village Map</h1>
-            </div>
-        </div>
-        <div className="text-label-md text-on-surface-variant hidden md:block">
-            Hudkeshwar Gram Panchayat
-        </div>
-      </header>
+    <div className="flex flex-col min-h-screen bg-surface">
+      <Navbar />
 
       {/* Main Content Area */}
       <div className="flex flex-1 overflow-hidden relative flex-col md:flex-row">

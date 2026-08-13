@@ -193,6 +193,7 @@ export async function initDb(): Promise<void> {
           type: CertificateType.INCOME,
           applicant_name: 'Ram Pawar',
           applicant_name_mr: 'राम पवार',
+          applicant_mobile: '9876543213',
           address: 'Ward No 1, Wandhale',
           status: ApplicationStatus.PENDING,
           supporting_docs: '[]',
@@ -203,6 +204,7 @@ export async function initDb(): Promise<void> {
           type: CertificateType.BIRTH,
           applicant_name: 'Sanjay Deshmukh',
           applicant_name_mr: 'संजय देशमुख',
+          applicant_mobile: '9876543213',
           address: 'Ward No 2, Wandhale',
           status: ApplicationStatus.PENDING,
           supporting_docs: '[]',
@@ -213,6 +215,7 @@ export async function initDb(): Promise<void> {
           type: CertificateType.DOMICILE,
           applicant_name: 'Sunita Gadkari',
           applicant_name_mr: 'सुनीता गडकरी',
+          applicant_mobile: '9876543213',
           address: 'Ward No 1, Wandhale',
           status: ApplicationStatus.APPROVED,
           supporting_docs: '[]',
@@ -229,6 +232,8 @@ export async function initDb(): Promise<void> {
       data: [
         {
           user_id: citizenUser.id,
+          filer_name: 'Ram Pawar',
+          filer_mobile: '9876543213',
           category: 'Water Supply',
           description: 'No water supply in Ward 1 pipeline since last 2 days.',
           ward_no: 1,
@@ -237,6 +242,8 @@ export async function initDb(): Promise<void> {
         },
         {
           user_id: citizenUser.id,
+          filer_name: 'Ram Pawar',
+          filer_mobile: '9876543213',
           category: 'Roads & Sanitation',
           description: 'Pothole blockages at Ward 2 main intersection causing minor traffic accidents.',
           ward_no: 2,
@@ -429,20 +436,9 @@ export async function getCertificates(): Promise<DbCertificate[]> {
     orderBy: { applied_at: 'desc' },
   });
 
-  return certs.map((c: {
-    id: string;
-    applicant: { name: string };
-    applicant_name_mr: string | null;
-    type: string;
-    status: string;
-    ward_no: number | null;
-    applied_at: Date;
-    approved_at: Date | null;
-    approved_by: string | null;
-    certificate_number: string | null;
-  }) => ({
+  return certs.map((c) => ({
     id: c.id,
-    applicantName: c.applicant.name,
+    applicantName: c.applicant_name || c.applicant?.name || 'Applicant',
     applicantNameMr: c.applicant_name_mr || '',
     type: c.type.toString(),
     status: c.status as DbCertificate['status'],
@@ -457,10 +453,11 @@ export async function getCertificates(): Promise<DbCertificate[]> {
 export async function saveCertificate(cert: Omit<DbCertificate, 'id' | 'appliedAt'>): Promise<DbCertificate> {
   const c = await prisma.certificateApplication.create({
     data: {
-      user_id: cert.approvedBy || 'user-citizen', // default reference
+      user_id: cert.approvedBy || undefined,
       type: cert.type as CertificateType,
       applicant_name: cert.applicantName,
       applicant_name_mr: cert.applicantNameMr,
+      applicant_mobile: '9876543213',
       address: 'Ward No ' + cert.ward_no + ', Wandhale',
       status: cert.status as ApplicationStatus,
       supporting_docs: '[]',
@@ -514,19 +511,9 @@ export async function getComplaints(): Promise<DbComplaint[]> {
     orderBy: { created_at: 'desc' },
   });
 
-  return comps.map((c: {
-    id: string;
-    filer: { name: string };
-    category: string;
-    description: string;
-    ward_no: number | null;
-    status: string;
-    created_at: Date;
-    geo_lat: { toString(): string } | null;
-    geo_lng: { toString(): string } | null;
-  }) => ({
+  return comps.map((c) => ({
     id: c.id,
-    filerName: c.filer.name,
+    filerName: c.filer_name || c.filer?.name || 'Villager',
     category: c.category,
     description: c.description,
     ward_no: c.ward_no ?? 1,
@@ -542,7 +529,9 @@ export async function saveComplaint(complaint: Omit<DbComplaint, 'id' | 'created
 
   const c = await prisma.complaint.create({
     data: {
-      user_id: user?.id || 'user-citizen',
+      user_id: user?.id || undefined,
+      filer_name: complaint.filerName,
+      filer_mobile: '9876543213',
       category: complaint.category,
       description: complaint.description,
       ward_no: complaint.ward_no,

@@ -131,6 +131,21 @@ enum WaterConnectionType {
   AGRICULTURAL
 }
 
+enum AssetType {
+  COMMUNITY_HALL
+  TRACTOR
+  WATER_TANKER
+  FURNITURE
+  OTHER
+}
+
+enum BookingStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
 // ============================================================
 // MODULE 1: GRAM PANCHAYAT CONFIGURATION
 // ============================================================
@@ -161,40 +176,40 @@ model GpRegistry {
 
 /// Detailed per-GP config (lives in each GP's own schema)
 model GpConfig {
-  id                    String    @id @default(uuid()) @db.Uuid
+  id                    String   @id @default(uuid()) @db.Uuid
   gp_name               String
   gp_name_marathi       String
   district              String
   taluka                String
-  state                 String    @default("Maharashtra")
-  pincode               String    @db.Char(6)
+  state                 String   @default("Maharashtra")
+  pincode               String   @db.Char(6)
   address               String
   address_marathi       String?
   population            Int
   ward_count            Int
-  area_sq_km            Decimal?  @db.Decimal(10, 4)
+  area_sq_km            Decimal? @db.Decimal(10, 4)
   established_year      Int?
   logo_url              String?
   banner_url            String?
-  theme_color           String    @default("#FF6600")
-  sarpanch_user_id      String?   @db.Uuid
-  gramsevak_user_id     String?   @db.Uuid
+  theme_color           String   @default("#FF6600")
+  sarpanch_user_id      String?  @db.Uuid
+  gramsevak_user_id     String?  @db.Uuid
   contact_email         String?
   contact_phone         String?
   whatsapp_phone        String?
   website_url           String?
   vapid_public_key      String?
-  sms_quota_monthly     Int       @default(500)
-  sms_used_this_month   Int       @default(0)
-  sms_provider          String    @default("MSG91")
-  sms_api_key           String    @default("")
-  sms_sender_id         String    @default("GMPNCH")
-  enable_aadhaar_verify Boolean   @default(true)
-  enable_digilocker     Boolean   @default(false)
-  enable_dsc_signing    Boolean   @default(false)
-  dsc_signer_name       String    @default("")
-  created_at            DateTime  @default(now())
-  updated_at            DateTime  @updatedAt
+  sms_quota_monthly     Int      @default(500)
+  sms_used_this_month   Int      @default(0)
+  sms_provider          String   @default("MSG91")
+  sms_api_key           String   @default("")
+  sms_sender_id         String   @default("GMPNCH")
+  enable_aadhaar_verify Boolean  @default(true)
+  enable_digilocker     Boolean  @default(false)
+  enable_dsc_signing    Boolean  @default(false)
+  dsc_signer_name       String   @default("")
+  created_at            DateTime @default(now())
+  updated_at            DateTime @updatedAt
 
   @@map("gp_config")
 }
@@ -204,39 +219,40 @@ model GpConfig {
 // ============================================================
 
 model User {
-  id                    String     @id @default(uuid()) @db.Uuid
+  id                    String      @id @default(uuid()) @db.Uuid
   name                  String
   name_marathi          String?
-  mobile                String     @unique
+  mobile                String      @unique
   hashed_pin            String
   email                 String?
-  aadhaar_last4         String?    @db.Char(4)
+  aadhaar_last4         String?     @db.Char(4)
   gender                GenderType?
   dob                   DateTime?
-  role                  UserRole   @default(USER)
+  role                  UserRole    @default(USER)
   ward_no               Int?
   address               String?
   photo_url             String?
-  is_verified           Boolean    @default(false)
-  is_active             Boolean    @default(true)
-  consent_given         Boolean    @default(false)
+  is_verified           Boolean     @default(false)
+  is_active             Boolean     @default(true)
+  consent_given         Boolean     @default(false)
   consent_given_at      DateTime?
-  deletion_requested    Boolean    @default(false)
+  deletion_requested    Boolean     @default(false)
   deletion_requested_at DateTime?
-  created_at            DateTime   @default(now())
-  updated_at            DateTime   @updatedAt
+  created_at            DateTime    @default(now())
+  updated_at            DateTime    @updatedAt
 
-  otp_sessions              OtpSession[]
-  push_subscriptions        PushSubscription[]
-  certificate_applications  CertificateApplication[] @relation("Applicant")
-  approved_certificates     CertificateApplication[] @relation("Approver")
-  complaints                Complaint[]              @relation("ComplaintFiler")
-  assigned_complaints       Complaint[]              @relation("ComplaintAssignee")
-  properties                Property[]
-  agent_approvals           AgentPermissionApproval[]
-  audit_logs                AuditLog[]
-  consent_logs              ConsentLog[]
-  notifications             Notification[]
+  otp_sessions             OtpSession[]
+  push_subscriptions       PushSubscription[]
+  certificate_applications CertificateApplication[]  @relation("Applicant")
+  approved_certificates    CertificateApplication[]  @relation("Approver")
+  complaints               Complaint[]               @relation("ComplaintFiler")
+  assigned_complaints      Complaint[]               @relation("ComplaintAssignee")
+  properties               Property[]
+  agent_approvals          AgentPermissionApproval[]
+  audit_logs               AuditLog[]
+  consent_logs             ConsentLog[]
+  notifications            Notification[]
+  AssetBooking             AssetBooking[]
 
   @@index([mobile])
   @@index([role])
@@ -254,7 +270,7 @@ model OtpSession {
   ip_address    String?
   created_at    DateTime @default(now())
 
-  user          User?    @relation(fields: [user_id], references: [id])
+  user User? @relation(fields: [user_id], references: [id])
 
   @@index([mobile])
   @@index([expires_at])
@@ -272,7 +288,7 @@ model PushSubscription {
   created_at  DateTime @default(now())
   updated_at  DateTime @updatedAt
 
-  user        User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@index([user_id])
   @@map("push_subscriptions")
@@ -287,7 +303,7 @@ model ConsentLog {
   user_agent String?
   created_at DateTime @default(now())
 
-  user       User     @relation(fields: [user_id], references: [id])
+  user User @relation(fields: [user_id], references: [id])
 
   @@index([user_id])
   @@map("consent_logs")
@@ -298,8 +314,8 @@ model ConsentLog {
 // ============================================================
 
 model Member {
-  id             String   @id @default(uuid()) @db.Uuid
-  user_id        String?  @db.Uuid
+  id             String    @id @default(uuid()) @db.Uuid
+  user_id        String?   @db.Uuid
   name           String
   name_marathi   String
   designation    String
@@ -311,9 +327,9 @@ model Member {
   contact_email  String?
   term_start     DateTime
   term_end       DateTime?
-  is_active      Boolean  @default(true)
-  created_at     DateTime @default(now())
-  updated_at     DateTime @updatedAt
+  is_active      Boolean   @default(true)
+  created_at     DateTime  @default(now())
+  updated_at     DateTime  @updatedAt
 
   @@index([ward_no])
   @@map("members")
@@ -325,11 +341,13 @@ model Member {
 
 model CertificateApplication {
   id                 String            @id @default(uuid()) @db.Uuid
+  tracking_id        String            @unique @default(cuid())
   certificate_number String?           @unique
-  user_id            String            @db.Uuid
+  user_id            String?           @db.Uuid
   type               CertificateType
   applicant_name     String
   applicant_name_mr  String
+  applicant_mobile   String
   applicant_relation String?
   dob                DateTime?
   gender             GenderType?
@@ -356,8 +374,8 @@ model CertificateApplication {
   created_at         DateTime          @default(now())
   updated_at         DateTime          @updatedAt
 
-  applicant          User              @relation("Applicant", fields: [user_id], references: [id])
-  approver           User?             @relation("Approver", fields: [approved_by], references: [id])
+  applicant User? @relation("Applicant", fields: [user_id], references: [id])
+  approver  User? @relation("Approver", fields: [approved_by], references: [id])
 
   @@index([user_id])
   @@index([status])
@@ -392,8 +410,8 @@ model Property {
   created_at        DateTime     @default(now())
   updated_at        DateTime     @updatedAt
 
-  owner             User?        @relation(fields: [owner_user_id], references: [id])
-  tax_payments      TaxPayment[]
+  owner        User?        @relation(fields: [owner_user_id], references: [id])
+  tax_payments TaxPayment[]
 
   @@index([survey_no])
   @@index([ward_no])
@@ -413,7 +431,7 @@ model TaxPayment {
   paid_at             DateTime?
   created_at          DateTime      @default(now())
 
-  property            Property      @relation(fields: [property_id], references: [id])
+  property Property @relation(fields: [property_id], references: [id])
 
   @@index([property_id])
   @@index([payment_status])
@@ -438,7 +456,7 @@ model WaterConnection {
   created_at        DateTime            @default(now())
   updated_at        DateTime            @updatedAt
 
-  water_bills       WaterBill[]
+  water_bills WaterBill[]
 
   @@index([owner_user_id])
   @@map("water_connections")
@@ -460,7 +478,7 @@ model WaterBill {
   paid_at             DateTime?
   created_at          DateTime      @default(now())
 
-  connection          WaterConnection @relation(fields: [connection_id], references: [id])
+  connection WaterConnection @relation(fields: [connection_id], references: [id])
 
   @@index([connection_id])
   @@index([billing_month])
@@ -472,34 +490,36 @@ model WaterBill {
 // ============================================================
 
 model Complaint {
-  id                      String          @id @default(uuid()) @db.Uuid
-  tracking_id             String          @unique @default(cuid())
-  user_id                 String          @db.Uuid
-  category                String
-  category_mr             String?
-  sub_category            String?
-  description             String
-  description_mr          String?
-  location                String?
-  geo_lat                 Decimal?        @db.Decimal(10, 7)
-  geo_lng                 Decimal?        @db.Decimal(10, 7)
-  ward_no                 Int?
-  photo_urls              Json            @default("[]")
-  status                  ComplaintStatus @default(OPEN)
-  urgency                 Int             @default(2)
-  assigned_to             String?         @db.Uuid
-  resolution_note         String?
-  resolution_note_mr      String?
-  escalated_to_sarpanch   Boolean         @default(false)
-  escalation_date         DateTime?
-  created_at              DateTime        @default(now())
-  assigned_at             DateTime?
-  resolved_at             DateTime?
-  closed_at               DateTime?
-  updated_at              DateTime        @updatedAt
+  id                    String          @id @default(uuid()) @db.Uuid
+  tracking_id           String          @unique @default(cuid())
+  user_id               String?         @db.Uuid
+  filer_name            String
+  filer_mobile          String
+  category              String
+  category_mr           String?
+  sub_category          String?
+  description           String
+  description_mr        String?
+  location              String?
+  geo_lat               Decimal?        @db.Decimal(10, 7)
+  geo_lng               Decimal?        @db.Decimal(10, 7)
+  ward_no               Int?
+  photo_urls            Json            @default("[]")
+  status                ComplaintStatus @default(OPEN)
+  urgency               Int             @default(2)
+  assigned_to           String?         @db.Uuid
+  resolution_note       String?
+  resolution_note_mr    String?
+  escalated_to_sarpanch Boolean         @default(false)
+  escalation_date       DateTime?
+  created_at            DateTime        @default(now())
+  assigned_at           DateTime?
+  resolved_at           DateTime?
+  closed_at             DateTime?
+  updated_at            DateTime        @updatedAt
 
-  filer                   User            @relation("ComplaintFiler", fields: [user_id], references: [id])
-  assignee                User?           @relation("ComplaintAssignee", fields: [assigned_to], references: [id])
+  filer    User? @relation("ComplaintFiler", fields: [user_id], references: [id])
+  assignee User? @relation("ComplaintAssignee", fields: [assigned_to], references: [id])
 
   @@index([user_id])
   @@index([status])
@@ -555,7 +575,7 @@ model ProjectProgressUpdate {
   updated_by   String   @db.Uuid
   created_at   DateTime @default(now())
 
-  project      Project  @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  project Project @relation(fields: [project_id], references: [id], onDelete: Cascade)
 
   @@index([project_id])
   @@map("project_progress_updates")
@@ -578,7 +598,7 @@ model BudgetHead {
   created_at       DateTime @default(now())
   updated_at       DateTime @updatedAt
 
-  budget_entries   BudgetEntry[]
+  budget_entries BudgetEntry[]
 
   @@unique([financial_year, head_code])
   @@index([financial_year])
@@ -586,19 +606,19 @@ model BudgetHead {
 }
 
 model BudgetEntry {
-  id             String     @id @default(uuid()) @db.Uuid
-  head_id        String     @db.Uuid
-  voucher_number String?    @unique
+  id             String   @id @default(uuid()) @db.Uuid
+  head_id        String   @db.Uuid
+  voucher_number String?  @unique
   entry_type     String
-  amount         Decimal    @db.Decimal(15, 2)
+  amount         Decimal  @db.Decimal(15, 2)
   description    String
   description_mr String?
-  entry_date     DateTime   @default(now())
-  created_by     String     @db.Uuid
+  entry_date     DateTime @default(now())
+  created_by     String   @db.Uuid
   attachment_url String?
-  created_at     DateTime   @default(now())
+  created_at     DateTime @default(now())
 
-  head           BudgetHead @relation(fields: [head_id], references: [id])
+  head BudgetHead @relation(fields: [head_id], references: [id])
 
   @@index([head_id])
   @@index([entry_date])
@@ -681,14 +701,14 @@ model Scheme {
 }
 
 model SchemeEligibility {
-  id          String   @id @default(uuid()) @db.Uuid
-  user_id     String   @db.Uuid
-  scheme_id   String   @db.Uuid
-  is_eligible Boolean  @default(true)
-  matched_at  DateTime @default(now())
-  notified    Boolean  @default(false)
+  id          String    @id @default(uuid()) @db.Uuid
+  user_id     String    @db.Uuid
+  scheme_id   String    @db.Uuid
+  is_eligible Boolean   @default(true)
+  matched_at  DateTime  @default(now())
+  notified    Boolean   @default(false)
   notified_at DateTime?
-  enrolled    Boolean  @default(false)
+  enrolled    Boolean   @default(false)
   enrolled_at DateTime?
 
   @@unique([user_id, scheme_id])
@@ -701,20 +721,20 @@ model SchemeEligibility {
 // ============================================================
 
 model RtiRequest {
-  id              String   @id @default(uuid()) @db.Uuid
-  user_id         String?  @db.Uuid
+  id              String    @id @default(uuid()) @db.Uuid
+  user_id         String?   @db.Uuid
   applicant_name  String
   applicant_phone String
   subject         String
   description     String
-  requested_docs  Json     @default("[]")
-  status          String   @default("RECEIVED")
+  requested_docs  Json      @default("[]")
+  status          String    @default("RECEIVED")
   response_url    String?
   response_note   String?
   deadline_date   DateTime?
-  filed_at        DateTime @default(now())
+  filed_at        DateTime  @default(now())
   responded_at    DateTime?
-  created_at      DateTime @default(now())
+  created_at      DateTime  @default(now())
 
   @@index([status])
   @@map("rti_requests")
@@ -740,8 +760,8 @@ model AgentPermissionRequest {
   outcome               String?
   correlation_id        String?
 
-  approvals             AgentPermissionApproval[]
-  audit_log             AgentAuditLog?
+  approvals AgentPermissionApproval[]
+  audit_log AgentAuditLog?
 
   @@index([status])
   @@index([agent_name])
@@ -753,34 +773,34 @@ model AgentPermissionApproval {
   id          String   @id @default(uuid()) @db.Uuid
   request_id  String   @db.Uuid
   approved_by String   @db.Uuid
-  role        UserRole  // SUPER_ADMIN or ADMIN who approved/rejected
+  role        UserRole // SUPER_ADMIN or ADMIN who approved/rejected
   approved    Boolean
   comment     String?
   approved_at DateTime @default(now())
 
-  request     AgentPermissionRequest @relation(fields: [request_id], references: [id], onDelete: Cascade)
-  user        User                   @relation(fields: [approved_by], references: [id])
+  request AgentPermissionRequest @relation(fields: [request_id], references: [id], onDelete: Cascade)
+  user    User                   @relation(fields: [approved_by], references: [id])
 
   @@index([request_id])
   @@map("agent_permission_approvals")
 }
 
 model AgentAuditLog {
-  id                    String                  @id @default(uuid()) @db.Uuid
+  id                    String           @id @default(uuid()) @db.Uuid
   agent_name            AgentName
   action                String
   action_level          AgentActionLevel
   payload               Json
-  permission_request_id String?                 @unique @db.Uuid
-  permission_granted_by String?                 @db.Uuid
+  permission_request_id String?          @unique @db.Uuid
+  permission_granted_by String?          @db.Uuid
   permission_granted_at DateTime?
   outcome               String
   error_message         String?
   correlation_id        String?
   duration_ms           Int?
-  created_at            DateTime                @default(now())
+  created_at            DateTime         @default(now())
 
-  permission_request    AgentPermissionRequest? @relation(fields: [permission_request_id], references: [id])
+  permission_request AgentPermissionRequest? @relation(fields: [permission_request_id], references: [id])
 
   @@index([agent_name])
   @@index([created_at])
@@ -826,7 +846,7 @@ model Notification {
   correlation_id String?
   created_at     DateTime            @default(now())
 
-  user           User                @relation(fields: [user_id], references: [id])
+  user User @relation(fields: [user_id], references: [id])
 
   @@index([user_id])
   @@index([status])
@@ -851,7 +871,7 @@ model AuditLog {
   user_agent  String?
   created_at  DateTime @default(now())
 
-  user        User     @relation(fields: [user_id], references: [id])
+  user User @relation(fields: [user_id], references: [id])
 
   @@index([user_id])
   @@index([entity_type, entity_id])
@@ -864,17 +884,62 @@ model AuditLog {
 // ============================================================
 
 model Report {
-  id          String     @id @default(uuid()) @db.Uuid
-  report_type String
-  period      String
-  data        Json
-  pdf_s3_key  String?
-  pdf_url     String?
+  id           String     @id @default(uuid()) @db.Uuid
+  report_type  String
+  period       String
+  data         Json
+  pdf_s3_key   String?
+  pdf_url      String?
   generated_by AgentName?
-  is_public   Boolean    @default(false)
-  created_at  DateTime   @default(now())
+  is_public    Boolean    @default(false)
+  created_at   DateTime   @default(now())
 
   @@index([report_type])
   @@index([created_at])
   @@map("reports")
+}
+
+// ============================================================
+// MODULE 18: COMMUNITY ASSET BOOKING
+// ============================================================
+
+model Asset {
+  id          String    @id @default(uuid()) @db.Uuid
+  name        String
+  name_mr     String
+  type        AssetType
+  capacity    Int?
+  description String?
+  photo_url   String?
+  is_active   Boolean   @default(true)
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
+
+  bookings AssetBooking[]
+
+  @@map("assets")
+}
+
+model AssetBooking {
+  id            String        @id @default(uuid()) @db.Uuid
+  tracking_id   String        @unique @default(cuid())
+  asset_id      String        @db.Uuid
+  booker_name   String
+  booker_mobile String
+  start_date    DateTime
+  end_date      DateTime
+  status        BookingStatus @default(PENDING)
+  purpose       String?
+  remarks       String?
+  approved_by   String?       @db.Uuid
+  created_at    DateTime      @default(now())
+  updated_at    DateTime      @updatedAt
+
+  asset    Asset @relation(fields: [asset_id], references: [id])
+  approver User? @relation(fields: [approved_by], references: [id])
+
+  @@index([asset_id])
+  @@index([status])
+  @@index([start_date])
+  @@map("asset_bookings")
 }

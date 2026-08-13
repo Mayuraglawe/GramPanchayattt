@@ -20,7 +20,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="scroll-smooth">
+    <html lang="en" className="scroll-smooth overflow-x-hidden w-full">
       <head>
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#FF6600" />
@@ -56,7 +56,7 @@ export default function RootLayout({
         `}</style>
       </head>
       <body
-        className={`${notoSans.variable} bg-background text-on-background font-body-md antialiased selection:bg-primary-container selection:text-on-primary-container`}
+        className={`${notoSans.variable} bg-background text-on-background font-body-md antialiased selection:bg-primary-container selection:text-on-primary-container w-full max-w-full`}
       >
         <LanguageProvider>
           {children}

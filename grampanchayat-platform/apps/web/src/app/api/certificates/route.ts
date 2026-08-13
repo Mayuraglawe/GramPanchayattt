@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken, COOKIE_NAME } from '@/lib/auth';
-import { getCertificates, saveCertificate, updateCertificateStatus, findUserByMobile, addAuditLog } from '@/lib/db';
+import { prisma } from '@/lib/prisma';
+import { getCertificates, updateCertificateStatus, findUserByMobile, addAuditLog } from '@/lib/db';
+import { CertificateType } from '@prisma/client';
 
 // ── GET: Fetch certificates based on roles & ward scoping ────────────────────
 export async function GET(request: NextRequest) {
@@ -19,18 +21,15 @@ export async function GET(request: NextRequest) {
     const certificates = await getCertificates();
 
     if (payload.role === 'SUPER_ADMIN') {
-      // Super Admin sees all
       return NextResponse.json(certificates);
     }
 
     if (payload.role === 'ADMIN') {
-      // Admin sees only tasks from their ward
       const ward = dbUser?.ward_no ?? 0;
       const filtered = certificates.filter((c) => c.ward_no === ward);
       return NextResponse.json(filtered);
     }
 
-    // Citizen (USER) sees only their own certificates
     const citizenName = payload.name;
     const filtered = certificates.filter((c) => c.applicantName === citizenName);
     return NextResponse.json(filtered);
@@ -41,53 +40,54 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// ── POST: Citizen submits certificate request ────────────────────────────────
+// ── POST: Public Citizen submits certificate application (No Login Required) ──
 export async function POST(request: NextRequest) {
   try {
-    const token = request.cookies.get(COOKIE_NAME)?.value;
-    if (!token) {
-      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-    }
-
-    const payload = await verifyToken(token);
-    if (!payload) {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
-    }
-
-    const dbUser = await findUserByMobile(payload.mobile);
     const body = await request.json();
-    const { type, applicantNameMr } = body;
+    const { applicantName, applicantNameMr, applicantMobile, address, type, wardNo, supportingDocs } = body;
 
-    if (!type || !applicantNameMr) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    if (!type || !applicantName || !applicantMobile) {
+      return NextResponse.json({ error: 'Applicant name, mobile, and certificate type are required' }, { status: 400 });
     }
 
-    const newCert = await saveCertificate({
-      applicantName: payload.name,
-      applicantNameMr,
-      type,
-      status: 'PENDING',
-      ward_no: dbUser?.ward_no ?? 1,
+    let userId: string | undefined = undefined;
+    const token = request.cookies.get(COOKIE_NAME)?.value;
+    if (token) {
+      const payload = await verifyToken(token);
+      if (payload) {
+        const user = await findUserByMobile(payload.mobile);
+        userId = user?.id;
+      }
+    }
+
+    const application = await prisma.certificateApplication.create({
+      data: {
+        user_id: userId,
+        type: type as CertificateType,
+        applicant_name: applicantName,
+        applicant_name_mr: applicantNameMr || applicantName,
+        applicant_mobile: applicantMobile,
+        address: address || 'Gram Panchayat Jurisdiction',
+        ward_no: wardNo ? Number(wardNo) : 1,
+        status: 'PENDING',
+        supporting_docs: supportingDocs ? JSON.stringify(supportingDocs) : '[]',
+      },
     });
 
-    await addAuditLog({
-      userId: payload.userId,
-      userName: payload.name,
-      userRole: payload.role,
-      action: 'APPLY_CERTIFICATE',
-      details: `Applied for ${type} certificate. Reference ID: ${newCert.id}.`,
-      ipAddress: request.headers.get('x-forwarded-for') || '127.0.0.1',
-    });
-
-    return NextResponse.json(newCert, { status: 201 });
+    return NextResponse.json({
+      success: true,
+      tracking_id: application.tracking_id,
+      id: application.id,
+      message: 'Certificate application submitted. Save your Tracking ID to check status later.',
+    }, { status: 201 });
 
   } catch (error) {
-    console.error('[apply certificate]', error);
+    console.error('[apply certificate error]', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
-// ── PATCH: Approve/Reject / Update Status ────────────────────────────────────
+// ── PATCH: Admin Approve/Reject Certificate Status ───────────────────────────
 export async function PATCH(request: NextRequest) {
   try {
     const token = request.cookies.get(COOKIE_NAME)?.value;
@@ -114,7 +114,6 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Certificate not found' }, { status: 404 });
     }
 
-    // Ward scoping check for ADMIN
     if (payload.role === 'ADMIN' && cert.ward_no !== dbUser?.ward_no) {
       return NextResponse.json({ error: 'Access denied: not in your ward' }, { status: 403 });
     }

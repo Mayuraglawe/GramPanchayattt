@@ -2,6 +2,7 @@
 
 /* eslint-disable @next/next/no-img-element */
 import React, { useState } from 'react';
+import Navbar from '@/components/Navbar';
 
 interface Scheme {
   id: string;
@@ -48,40 +49,7 @@ export default function SchemesClient({ initialSchemes }: SchemesClientProps) {
 
   return (
     <div className="min-h-screen bg-surface-container-lowest dark:bg-inverse-surface flex flex-col font-sans">
-      {/* HEADER */}
-      <header className="bg-surface dark:bg-surface-container-highest border-b border-outline-variant shadow-sm top-0 z-40 sticky">
-        <div className="flex items-center justify-between h-[72px] px-md lg:px-lg max-w-container-max mx-auto w-full">
-          <a className="flex items-center gap-sm" href="/">
-            <img
-              alt="Gram Panchayat Emblem"
-              className="h-12 w-12 object-contain"
-              src="https://lh3.googleusercontent.com/aida-public/AB6AXuDwOt3btzGAHdEQqUYDDZKkpFf86hD13iuogwK5sJ6n1mHhFpvadD8fyKz3ofQitSvIvBCLiU2NPyoxgDk7RSvGKrf4kVNScPjE8n0G4SfDiAqxu12bjV7FyuoFMElaBCruoRSICbBWHnyOz2kn-Vy0sRzowqH1n3_IvlafFpvweNAkhbIMcTlmt59uiekLrgEFBfwmmIs3I1pEqxhL-hViuTS6SzNmg1mY_cD3-F7ILpzHTIINaSE"
-            />
-            <div className="flex flex-col">
-              <span className="text-headline-md font-bold text-primary dark:text-primary-fixed-dim leading-none">ग्रामपंचायत</span>
-              <span className="text-caption text-on-surface-variant mt-1">Schemes Directory (योजना)</span>
-            </div>
-          </a>
-          
-          <div className="flex items-center gap-sm">
-            {/* Locale Toggle */}
-            <button
-              onClick={() => setLocale(locale === 'mr' ? 'en' : 'mr')}
-              className="border border-primary text-primary hover:bg-primary/5 font-semibold py-1.5 px-4 rounded-full transition-all text-body-sm flex items-center gap-1"
-            >
-              <span className="material-symbols-outlined text-[16px]">language</span>
-              {locale === 'mr' ? 'English' : 'मराठी'}
-            </button>
-            <a
-              className="border border-outline hover:bg-surface-container-high text-on-surface-variant font-label-md py-1.5 px-4 rounded-full transition-all text-body-sm flex items-center gap-1"
-              href="/"
-            >
-              <span className="material-symbols-outlined text-[16px]">arrow_back</span>
-              Home
-            </a>
-          </div>
-        </div>
-      </header>
+      <Navbar />
 
       {/* BODY CONTENT */}
       <main className="flex-grow max-w-container-max w-full mx-auto px-md lg:px-lg py-xl flex flex-col gap-6">
@@ -98,18 +66,28 @@ export default function SchemesClient({ initialSchemes }: SchemesClientProps) {
                   : 'Browse active Central and State welfare programs for citizens.'}
               </p>
             </div>
-            {/* Level Selector */}
-            <div className="flex bg-surface-container-high dark:bg-surface-container-lowest p-1 rounded-full border border-outline-variant/60 self-start md:self-center">
+            <div className="flex items-center gap-3 flex-wrap">
+              {/* Language Toggle */}
               <button
-                onClick={() => setFilterLevel('ALL')}
-                className={`py-2 px-5 rounded-full font-bold text-body-sm transition-all ${
-                  filterLevel === 'ALL'
-                    ? 'bg-primary text-on-primary shadow-sm'
-                    : 'text-on-surface-variant hover:bg-surface-container-highest'
-                }`}
+                onClick={() => setLocale(locale === 'mr' ? 'en' : 'mr')}
+                className="border border-primary text-primary hover:bg-primary/5 font-semibold py-2 px-4 rounded-full transition-all text-body-sm flex items-center gap-1.5 shadow-xs"
               >
-                {locale === 'mr' ? 'सर्व योजना' : 'All Schemes'}
+                <span className="material-symbols-outlined text-[18px]">language</span>
+                {locale === 'mr' ? 'English' : 'मराठी'}
               </button>
+
+              {/* Level Selector */}
+              <div className="flex bg-surface-container-high dark:bg-surface-container-lowest p-1 rounded-full border border-outline-variant/60 self-start md:self-center">
+                <button
+                  onClick={() => setFilterLevel('ALL')}
+                  className={`py-2 px-5 rounded-full font-bold text-body-sm transition-all ${
+                    filterLevel === 'ALL'
+                      ? 'bg-primary text-on-primary shadow-sm'
+                      : 'text-on-surface-variant hover:bg-surface-container-highest'
+                  }`}
+                >
+                  {locale === 'mr' ? 'सर्व योजना' : 'All Schemes'}
+                </button>
               <button
                 onClick={() => setFilterLevel('CENTRAL')}
                 className={`py-2 px-5 rounded-full font-bold text-body-sm transition-all ${
@@ -131,6 +109,7 @@ export default function SchemesClient({ initialSchemes }: SchemesClientProps) {
                 {locale === 'mr' ? 'राज्य सरकार' : 'State Govt'}
               </button>
             </div>
+          </div>
           </div>
 
           {/* Search Input */}
