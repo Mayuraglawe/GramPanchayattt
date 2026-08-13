@@ -23,7 +23,7 @@ export default function VillageMap() {
       <iframe
         key={zoom}
         title="Grampanchayt Hudkeshwar Khurd Map"
-        src={`https://maps.google.com/maps?q=Grampanchayt%20Hudkeshwar%20Khurd%20Nagpur&t=&z=${zoom}&ie=UTF8&iwloc=&output=embed`}
+        src={`https://maps.google.com/maps?q=21.0600,79.1300+(Grampanchayt%20Hudkeshwar%20Khurd)&t=&z=${zoom}&ie=UTF8&iwloc=&output=embed`}
         className="w-full h-full absolute inset-0 border-0"
         allowFullScreen
         loading="lazy"

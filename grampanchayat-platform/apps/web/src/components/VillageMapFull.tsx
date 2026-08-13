@@ -32,8 +32,8 @@ export default function VillageMapFull({ selectedLocation }: VillageMapFullProps
   };
 
   const mapQuery = selectedLocation
-    ? encodeURIComponent(`${selectedLocation.name} Hudkeshwar Khurd Nagpur`)
-    : encodeURIComponent('Grampanchayt Hudkeshwar Khurd Nagpur');
+    ? encodeURIComponent(`${selectedLocation.lat},${selectedLocation.lng}+(${selectedLocation.name})`)
+    : encodeURIComponent('21.0600,79.1300+(Grampanchayt Hudkeshwar Khurd)');
 
   return (
     <div className="relative w-full h-full min-h-[450px]">
