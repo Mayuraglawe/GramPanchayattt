@@ -182,8 +182,8 @@ export default function RegisterPage() {
             </p>
           </div>
           
-          <div className="mt-6 text-center">
-            <Link href="/" className="text-label-md font-label-md text-on-surface-variant hover:text-primary transition-colors flex items-center justify-center gap-1">
+          <div className="mt-6 flex justify-center">
+            <Link href="/" className="inline-flex items-center gap-2 px-4 py-2 bg-surface text-on-surface border border-outline-variant rounded-full shadow-sm hover:bg-surface-container-high hover:text-primary transition-all text-sm font-medium">
               <span className="material-symbols-outlined text-[18px]">arrow_back</span>
               Back to Home
             </Link>

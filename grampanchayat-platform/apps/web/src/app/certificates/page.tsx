@@ -71,7 +71,7 @@ export default function PublicCertificatesPage() {
       <div className="flex-1 py-10 px-4">
         <div className="max-w-3xl mx-auto">
           <div className="mb-6 flex items-center justify-between">
-            <Link href="/" className="inline-flex items-center text-sm font-medium text-primary hover:underline gap-1">
+            <Link href="/" className="inline-flex items-center gap-2 px-4 py-2 bg-surface text-on-surface border border-outline-variant rounded-full shadow-sm hover:bg-surface-container-high hover:text-primary transition-all text-sm font-medium">
               <span className="material-symbols-outlined text-[18px]">arrow_back</span>
               Back to Home
             </Link>

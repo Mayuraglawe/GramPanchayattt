@@ -2,6 +2,7 @@
 
 /* eslint-disable @next/next/no-img-element */
 import React, { useState } from 'react';
+import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 
 interface Scheme {
@@ -53,6 +54,12 @@ export default function SchemesClient({ initialSchemes }: SchemesClientProps) {
 
       {/* BODY CONTENT */}
       <main className="flex-grow max-w-container-max w-full mx-auto px-md lg:px-lg py-xl flex flex-col gap-6">
+        <div className="flex items-center justify-between">
+          <Link href="/" className="inline-flex items-center gap-2 px-4 py-2 bg-surface text-on-surface border border-outline-variant rounded-full shadow-sm hover:bg-surface-container-high hover:text-primary transition-all text-sm font-medium">
+            <span className="material-symbols-outlined text-[18px]">arrow_back</span>
+            Back to Home
+          </Link>
+        </div>
         {/* Search & Filter Section */}
         <div className="bg-surface dark:bg-surface-container-high border border-outline-variant rounded-3xl p-6 shadow-sm flex flex-col gap-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">

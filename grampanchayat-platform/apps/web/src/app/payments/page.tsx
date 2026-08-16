@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 
 interface Bill {
@@ -174,6 +175,12 @@ export default function PaymentsPage() {
 
       {/* BODY PORTAL */}
       <main className="flex-grow max-w-container-max w-full mx-auto px-md lg:px-lg py-xl flex flex-col gap-6">
+        <div className="mb-2">
+          <Link href="/" className="inline-flex items-center gap-2 px-4 py-2 bg-surface text-on-surface border border-outline-variant rounded-full shadow-sm hover:bg-surface-container-high hover:text-primary transition-all text-sm font-medium">
+            <span className="material-symbols-outlined text-[18px]">arrow_back</span>
+            Back to Home
+          </Link>
+        </div>
         {paymentSuccess ? (
           /* SUCCESS SCREEN */
           <div className="max-w-2xl w-full mx-auto bg-surface dark:bg-surface-container-high border border-outline-variant rounded-3xl p-8 shadow-lg text-center flex flex-col items-center gap-md animate-fade-in">

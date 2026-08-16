@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 
 type TrackResult = {
@@ -41,6 +42,12 @@ export default function TrackStatusPage() {
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <Navbar />
       <div className="flex-1 py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-md mx-auto mb-6 flex items-center justify-between">
+          <Link href="/" className="inline-flex items-center gap-2 px-4 py-2 bg-surface text-on-surface border border-outline-variant rounded-full shadow-sm hover:bg-surface-container-high hover:text-primary transition-all text-sm font-medium">
+            <span className="material-symbols-outlined text-[18px]">arrow_back</span>
+            Back to Home
+          </Link>
+        </div>
         <div className="max-w-md mx-auto bg-white rounded-lg shadow p-8">
           <h2 className="text-2xl font-bold text-center text-gray-900 mb-6">
             Track Your Application

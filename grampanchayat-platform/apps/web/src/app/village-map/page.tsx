@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import dynamic from 'next/dynamic';
+import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 
 // Dynamically import the map component with ssr disabled
@@ -78,6 +79,12 @@ export default function VillageMapPage() {
         {/* Sidebar / Bottom Sheet on Mobile */}
         <aside className="w-full md:w-80 lg:w-96 bg-surface-container-lowest border-r border-outline-variant flex flex-col shrink-0 h-[40vh] md:h-auto overflow-y-auto order-2 md:order-1 z-10 shadow-lg md:shadow-none">
             <div className="p-4 border-b border-outline-variant/50 sticky top-0 bg-surface-container-lowest/90 backdrop-blur-sm z-10">
+                <div className="mb-4">
+                  <Link href="/" className="inline-flex items-center gap-2 px-4 py-2 bg-surface text-on-surface border border-outline-variant rounded-full shadow-sm hover:bg-surface-container-high hover:text-primary transition-all text-sm font-medium">
+                    <span className="material-symbols-outlined text-[18px]">arrow_back</span>
+                    Back to Home
+                  </Link>
+                </div>
                 <h2 className="text-title-md font-title-md text-on-surface mb-1">Points of Interest</h2>
                 <p className="text-body-sm text-on-surface-variant">Select a location to explore</p>
                 {selectedLocation && (
