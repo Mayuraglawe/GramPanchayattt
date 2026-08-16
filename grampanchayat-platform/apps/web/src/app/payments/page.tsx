@@ -35,6 +35,10 @@ export default function PaymentsPage() {
   const [receiptUrl, setReceiptUrl] = useState('');
   const [razorpayOrderId, setRazorpayOrderId] = useState('');
   const [razorpayPaymentId, setRazorpayPaymentId] = useState('');
+  
+  // Payer Details
+  const [showPayerModal, setShowPayerModal] = useState(false);
+  const [payerDetails, setPayerDetails] = useState({ name: '', mobile: '', email: '' });
 
   // Search by mobile or consumer ID
   const handleSearch = async (e: React.FormEvent) => {
@@ -86,10 +90,69 @@ export default function PaymentsPage() {
   const selectedBills = billsList.filter((b) => selectedBillIds.includes(b.id));
   const totalAmount = selectedBills.reduce((sum, b) => sum + b.amount, 0);
 
+  // Open Real Razorpay Checkout
+  const handleOpenRazorpay = (orderId: string, amount: number) => {
+    const loadScript = () => {
+      return new Promise((resolve) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        if ((window as any).Razorpay) {
+          resolve(true);
+          return;
+        }
+        const script = document.createElement('script');
+        script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+        script.onload = () => resolve(true);
+        script.onerror = () => resolve(false);
+        document.body.appendChild(script);
+      });
+    };
+
+    loadScript().then((res) => {
+      if (!res) {
+        setError('Failed to load Razorpay SDK');
+        return;
+      }
+
+      const options = {
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_mockkeyid123',
+        amount: amount,
+        currency: 'INR',
+        name: 'Gram Panchayat Quick Pay',
+        description: 'Payment of Dues',
+        order_id: orderId,
+        handler: async function (response: {
+          razorpay_payment_id: string;
+          razorpay_order_id: string;
+          razorpay_signature: string;
+        }) {
+          handleCompletePayment(
+            response.razorpay_payment_id,
+            response.razorpay_order_id,
+            response.razorpay_signature
+          );
+        },
+        prefill: {
+          name: payerDetails.name,
+          contact: payerDetails.mobile,
+          email: payerDetails.email,
+        },
+        theme: {
+          color: '#0ea5e9',
+        },
+      };
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const paymentObject = new (window as any).Razorpay(options);
+      paymentObject.open();
+    });
+  };
+
   // Initiate Razorpay checkout order
-  const handleInitiatePayment = async () => {
+  const handleInitiatePayment = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (selectedBills.length === 0) return;
     setLoading(true);
+    setShowPayerModal(false);
 
     try {
       const res = await fetch('/api/payments/initiate', {
@@ -108,7 +171,12 @@ export default function PaymentsPage() {
 
       if (res.ok && data.success) {
         setRazorpayOrderId(data.orderId);
-        setShowPayModal(true);
+        if (data.orderId.startsWith('order_mock_')) {
+          // Fallback to fake modal if backend failed to create real order
+          setShowPayModal(true);
+        } else {
+          handleOpenRazorpay(data.orderId, data.amount);
+        }
       } else {
         setError('Checkout initiation failed. Try again.');
       }
@@ -120,12 +188,12 @@ export default function PaymentsPage() {
     }
   };
 
-  // Verify simulated payments
-  const handleCompletePayment = async () => {
-    if (selectedBills.length === 0 || !razorpayOrderId) return;
+  // Verify payments
+  const handleCompletePayment = async (rPaymentId?: string, rOrderId?: string, rSignature?: string) => {
+    if (selectedBills.length === 0) return;
 
     setVerifying(true);
-    const mockPaymentId = `pay_mock_${Math.random().toString(36).substring(2, 15)}`;
+    const mockPaymentId = rPaymentId || `pay_mock_${Math.random().toString(36).substring(2, 15)}`;
     setRazorpayPaymentId(mockPaymentId);
 
     try {
@@ -134,8 +202,10 @@ export default function PaymentsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           type: 'MULTI',
-          razorpayOrderId,
+          razorpayOrderId: rOrderId || razorpayOrderId,
           razorpayPaymentId: mockPaymentId,
+          razorpaySignature: rSignature,
+          payerDetails,
           bills: selectedBills.map((b) => ({
             id: b.id,
             type: b.type,
@@ -400,7 +470,7 @@ export default function PaymentsPage() {
                         <span className="text-headline-lg font-bold text-primary">₹{totalAmount.toFixed(2)}</span>
                       </div>
                       <button
-                        onClick={handleInitiatePayment}
+                        onClick={() => setShowPayerModal(true)}
                         className="bg-primary hover:bg-primary-container text-on-primary font-bold py-4 px-8 rounded-full transition-all flex items-center justify-center gap-2 shadow-md"
                       >
                         <span className="material-symbols-outlined">payments</span>
@@ -414,6 +484,65 @@ export default function PaymentsPage() {
           </div>
         )}
       </main>
+
+      {/* PAYER DETAILS MODAL */}
+      {showPayerModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="bg-surface dark:bg-surface-container-high w-full max-w-md rounded-2xl overflow-hidden shadow-2xl flex flex-col border border-outline-variant relative p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-headline-sm font-bold text-on-surface">Payer Details</h3>
+              <button onClick={() => setShowPayerModal(false)} className="text-on-surface-variant hover:text-on-surface">
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+            <p className="text-body-md text-on-surface-variant mb-6">
+              Please enter your details to proceed with the payment. This information will only be saved upon successful payment.
+            </p>
+            <form onSubmit={handleInitiatePayment} className="flex flex-col gap-4">
+              <div className="flex flex-col gap-2">
+                <label className="text-label-md font-semibold text-on-surface-variant">Full Name</label>
+                <input
+                  type="text"
+                  required
+                  value={payerDetails.name}
+                  onChange={(e) => setPayerDetails({ ...payerDetails, name: e.target.value })}
+                  className="px-4 py-2 border border-outline rounded-lg bg-surface-container-lowest focus:ring-2 focus:ring-primary text-on-surface"
+                  placeholder="e.g. Ram Pawar"
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <label className="text-label-md font-semibold text-on-surface-variant">Mobile Number</label>
+                <input
+                  type="tel"
+                  required
+                  pattern="[0-9]{10}"
+                  value={payerDetails.mobile}
+                  onChange={(e) => setPayerDetails({ ...payerDetails, mobile: e.target.value })}
+                  className="px-4 py-2 border border-outline rounded-lg bg-surface-container-lowest focus:ring-2 focus:ring-primary text-on-surface"
+                  placeholder="10 digit mobile number"
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <label className="text-label-md font-semibold text-on-surface-variant">Email (Optional)</label>
+                <input
+                  type="email"
+                  value={payerDetails.email}
+                  onChange={(e) => setPayerDetails({ ...payerDetails, email: e.target.value })}
+                  className="px-4 py-2 border border-outline rounded-lg bg-surface-container-lowest focus:ring-2 focus:ring-primary text-on-surface"
+                  placeholder="For payment receipt"
+                />
+              </div>
+              <button
+                type="submit"
+                className="bg-primary hover:bg-primary-container text-on-primary font-bold py-3 mt-4 rounded-xl flex justify-center items-center gap-2"
+              >
+                Proceed to Pay
+                <span className="material-symbols-outlined">arrow_forward</span>
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* SIMULATED RAZORPAY MULTI-CHECKOUT OVERLAY MODAL */}
       {showPayModal && selectedBills.length > 0 && (
@@ -462,7 +591,7 @@ export default function PaymentsPage() {
               <div className="flex flex-col gap-3">
                 {/* Method UPI */}
                 <button
-                  onClick={handleCompletePayment}
+                  onClick={() => handleCompletePayment()}
                   disabled={verifying}
                   className="flex items-center justify-between p-4 bg-[#1e2738] hover:bg-[#253046] border border-gray-800 rounded-xl transition-all text-left"
                 >
@@ -478,7 +607,7 @@ export default function PaymentsPage() {
 
                 {/* Method Card */}
                 <button
-                  onClick={handleCompletePayment}
+                  onClick={() => handleCompletePayment()}
                   disabled={verifying}
                   className="flex items-center justify-between p-4 bg-[#1e2738] hover:bg-[#253046] border border-gray-800 rounded-xl transition-all text-left"
                 >
@@ -494,7 +623,7 @@ export default function PaymentsPage() {
 
                 {/* Method Netbanking */}
                 <button
-                  onClick={handleCompletePayment}
+                  onClick={() => handleCompletePayment()}
                   disabled={verifying}
                   className="flex items-center justify-between p-4 bg-[#1e2738] hover:bg-[#253046] border border-gray-800 rounded-xl transition-all text-left"
                 >

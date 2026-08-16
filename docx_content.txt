@@ -1,0 +1,143 @@
+Append-Only / State-Wise Data Store
+Implementation Guide for AI Workflow Agents
+─────────────────────────────────────────────────
+1.  What Is a State-Wise (Append-Only) Data Store?
+In a conventional database, when a record changes (e.g., payment status goes from 
+PENDING
+ → 
+PAID
+), the old row is overwritten and the history is lost.
+A state-wise / append-only store works differently: 
+every state change creates a brand-new row
+. The old rows are never touched. The full timeline is always queryable.
+Core Properties
+Property
+Meaning
+No overwrites
+Existing rows are never updated or deleted.
+New row per change
+Each state transition (event) is INSERT-only.
+Full audit trail
+Every historical state is preserved forever.
+Current state derived
+Latest state = last row for a given entity ID.
+Agent-friendly
+Agents can add entries without risk of corrupting prior state.
+2.  Real-World Example — Payment Flow
+Each time a payment event occurs, the agent inserts a 
+new row
+ — nothing is edited:
+id
+payment_id
+status
+amount
+created_at
+1
+PAY-001
+INITIATED
+₹5,000
+2024-06-01 10:00
+2
+PAY-001
+PENDING
+₹5,000
+2024-06-01 10:01
+3
+PAY-001
+PROCESSING
+₹5,000
+2024-06-01 10:02
+4
+PAY-001
+PAID
+₹5,000
+2024-06-01 10:05
+✅  Key insight: 
+Row 1 (INITIATED) is never touched. Four separate INSERT operations created the full timeline. The agent always knows the history.
+3.  Database Schema Design
+Your agent should instruct the DB layer to create a table like this (PostgreSQL / MySQL / SQLite):
+CREATE TABLE entity_state_log (
+    id            BIGSERIAL PRIMARY KEY,
+    entity_id     VARCHAR(64)  NOT NULL,    -- e.g. PAY-001
+    entity_type   VARCHAR(32)  NOT NULL,    -- e.g. 'payment'
+    state         VARCHAR(64)  NOT NULL,    -- e.g. 'PAID'
+    payload       JSONB,                   -- full data snapshot
+    triggered_by  VARCHAR(128),            -- agent / user / system
+    created_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+ 
+-- Index for fast 'latest state' queries
+CREATE INDEX idx_entity_state ON entity_state_log (entity_id, created_at DESC);
+4.  How Your Workflow Agent Should Write Data
+The agent must follow this rule strictly:
+⚠️  RULE: Never UPDATE or DELETE an existing row. Always INSERT a new row for every state change.
+Agent Instruction Template (give this to your agent):
+When you need to change the state of any entity (payment, order, task, etc.):
+ 
+1. DO NOT update existing database records.
+2. Create a new record in 'entity_state_log' with:
+   - entity_id    : the same ID as the entity
+   - entity_type  : type of entity (payment / order / task)
+   - state        : the new state value
+   - payload      : full snapshot of current data as JSON
+   - triggered_by : your agent name or the user who triggered it
+   - created_at   : current timestamp (auto-set by DB)
+3. To get the CURRENT state of an entity, always query the LATEST row:
+   SELECT * FROM entity_state_log
+   WHERE entity_id = '<id>'
+   ORDER BY created_at DESC LIMIT 1;
+4. To get the FULL HISTORY of an entity:
+   SELECT * FROM entity_state_log
+   WHERE entity_id = '<id>'
+   ORDER BY created_at ASC;
+5.  Reading State — Queries Your Agent Will Use
+Query Purpose
+SQL
+Get current state
+SELECT state FROM entity_state_log WHERE entity_id = 'X' ORDER BY created_at DESC LIMIT 1;
+Get full history
+SELECT * FROM entity_state_log WHERE entity_id = 'X' ORDER BY created_at ASC;
+All entities in state
+SELECT DISTINCT ON (entity_id) entity_id, state FROM entity_state_log ORDER BY entity_id, created_at DESC;
+Audit trail by agent
+SELECT * FROM entity_state_log WHERE triggered_by = 'my-agent' ORDER BY created_at DESC;
+6.  Agent Workflow — Step by Step
+Describe this flow to your AI agent as its operating procedure:
+1.  
+Step 1 — Receive Trigger: 
+Agent receives a task (e.g., 'process payment for order #123').
+2.  
+Step 2 — Read Current State: 
+Agent queries entity_state_log for the latest row of the entity. This tells the agent where things stand right now.
+3.  
+Step 3 — Perform Action: 
+Agent executes the required action (e.g., calls payment gateway API, runs business logic).
+4.  
+Step 4 — INSERT New State: 
+Agent inserts a NEW row into entity_state_log with the resulting state (SUCCESS / FAILED / PENDING). It never touches the old rows.
+5.  
+Step 5 — Repeat on Any Change: 
+Every subsequent change — retry, refund, dispute — adds another row. The chain is never broken.
+7.  Benefits for AI Agent Projects
+No data loss: 
+Agents that make mistakes don't destroy the original record — the old state is always there.
+Full auditability: 
+You always know what happened, when, and which agent triggered it.
+Safe concurrent agents: 
+Multiple agents can insert simultaneously without race conditions on UPDATE.
+Easy rollback: 
+To 'undo' a change, just read the previous state row and issue a correction INSERT.
+Time-travel queries: 
+See what the state was at any point in history with a simple timestamp filter.
+Idempotency checks: 
+Before inserting, agent can check if the same state transition was already recorded and skip duplicate writes.
+8.  Quick Checklist — What to Tell Your Agent
+✅  Always INSERT, never UPDATE or DELETE
+✅  Every row must have: entity_id, entity_type, state, payload (JSON), triggered_by, created_at
+✅  To get current state → ORDER BY created_at DESC LIMIT 1
+✅  To get full history → ORDER BY created_at ASC
+✅  Log the agent name in triggered_by for every insert
+✅  Store the full data snapshot in payload JSON, not just the changed fields
+✅  Treat the log table as immutable — no row is ever modified after creation
+This pattern is also called Event Sourcing or Audit Log architecture.
+Apply it consistently across all entities your agent manages — payments, orders, tasks, approvals, or any state machine.

@@ -55,9 +55,20 @@ export async function POST(request: NextRequest) {
         property_id: propertyId,
         amount: Number(amount),
         period: 'FY-2026-27',
-        payment_status: 'INITIATED',
-        razorpay_order_id: razorpayOrderId,
       },
+    });
+
+    await prisma.entityStateLog.create({
+      data: {
+        entity_id: payment.id,
+        entity_type: 'tax_payment',
+        state: 'INITIATED',
+        payload: {
+          razorpay_order_id: razorpayOrderId,
+          amount: Number(amount),
+        },
+        triggered_by: 'system',
+      }
     });
 
     return NextResponse.json({

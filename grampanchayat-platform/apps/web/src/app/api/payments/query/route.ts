@@ -49,17 +49,26 @@ export async function GET(request: NextRequest) {
         });
 
         for (const conn of waterConnections) {
-          // Find the latest initiated or unpaid water bill
           let bill = await prisma.waterBill.findFirst({
             where: {
               connection_id: conn.id,
-              payment_status: { not: 'SUCCESS' },
             },
             orderBy: { created_at: 'desc' },
           });
 
-          // Create a mock unpaid bill if none exists for this connection
-          if (!bill) {
+          let isPaid = false;
+          if (bill) {
+            const log = await prisma.entityStateLog.findFirst({
+              where: { entity_id: bill.id },
+              orderBy: { created_at: 'desc' },
+            });
+            if (log?.state === 'SUCCESS') {
+              isPaid = true;
+            }
+          }
+
+          // Create a mock unpaid bill if none exists for this connection or if the latest is paid
+          if (!bill || isPaid) {
             bill = await prisma.waterBill.create({
               data: {
                 connection_id: conn.id,
@@ -67,7 +76,6 @@ export async function GET(request: NextRequest) {
                 amount_due: conn.monthly_rate,
                 total_amount: conn.monthly_rate,
                 due_date: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000),
-                payment_status: 'INITIATED',
               },
             });
           }
@@ -162,12 +170,22 @@ export async function GET(request: NextRequest) {
         let bill = await prisma.waterBill.findFirst({
           where: {
             connection_id: waterConn.id,
-            payment_status: { not: 'SUCCESS' },
           },
           orderBy: { created_at: 'desc' },
         });
 
-        if (!bill) {
+        let isPaid = false;
+        if (bill) {
+          const log = await prisma.entityStateLog.findFirst({
+            where: { entity_id: bill.id },
+            orderBy: { created_at: 'desc' },
+          });
+          if (log?.state === 'SUCCESS') {
+            isPaid = true;
+          }
+        }
+
+        if (!bill || isPaid) {
           bill = await prisma.waterBill.create({
             data: {
               connection_id: waterConn.id,
@@ -175,7 +193,6 @@ export async function GET(request: NextRequest) {
               amount_due: waterConn.monthly_rate,
               total_amount: waterConn.monthly_rate,
               due_date: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000),
-              payment_status: 'INITIATED',
             },
           });
         }

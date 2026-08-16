@@ -6,10 +6,26 @@ export const dynamic = 'force-dynamic';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { type, paymentId, razorpayOrderId, razorpayPaymentId, bills } = body;
+    const { type, paymentId, razorpayOrderId, razorpayPaymentId, razorpaySignature, bills, payerDetails } = body;
 
     if (!razorpayOrderId || !razorpayPaymentId) {
       return NextResponse.json({ error: 'Missing required Razorpay parameters for verification' }, { status: 400 });
+    }
+
+    if (razorpaySignature) {
+      const crypto = await import('crypto');
+      const secret = process.env.RAZORPAY_KEY_SECRET;
+      if (!secret) {
+        return NextResponse.json({ error: 'Razorpay secret not configured' }, { status: 500 });
+      }
+      const expected = crypto
+        .createHmac('sha256', secret)
+        .update(razorpayOrderId + '|' + razorpayPaymentId)
+        .digest('hex');
+      
+      if (expected !== razorpaySignature) {
+        return NextResponse.json({ error: 'Payment signature mismatch' }, { status: 400 });
+      }
     }
 
     const receiptUrl = `/receipts/receipt_${razorpayOrderId}.pdf`;
@@ -20,25 +36,32 @@ export async function POST(request: NextRequest) {
         if (bill.id.startsWith('demo-')) continue;
 
         if (bill.type === 'TAX') {
-          // Find the TaxPayment record matching the property and order
+          // Find the TaxPayment record matching the property
           const taxPayment = await prisma.taxPayment.findFirst({
             where: {
               property_id: bill.id,
-              razorpay_order_id: razorpayOrderId,
             },
+            orderBy: { created_at: 'desc' },
             include: { property: true },
           });
 
           if (taxPayment) {
-            // Update to SUCCESS
-            await prisma.taxPayment.update({
-              where: { id: taxPayment.id },
+            // Insert SUCCESS state
+            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+            // @ts-ignore: Prisma Client types are outdated until dev server is restarted
+            await prisma.entityStateLog.create({
               data: {
-                payment_status: 'SUCCESS',
-                razorpay_payment_id: razorpayPaymentId,
-                paid_at: new Date(),
-                receipt_url: receiptUrl,
-              },
+                entity_id: taxPayment.id,
+                entity_type: 'tax_payment',
+                state: 'SUCCESS',
+                payload: {
+                  razorpay_payment_id: razorpayPaymentId,
+                  receipt_url: receiptUrl,
+                  amount: Number(taxPayment.amount),
+                  payer_details: payerDetails,
+                },
+                triggered_by: 'webhook',
+              }
             });
 
             // Settle Property dues
@@ -82,24 +105,30 @@ export async function POST(request: NextRequest) {
           }
 
         } else if (bill.type === 'WATER') {
-          // Find the WaterBill record matching the connection and order
+          // Find the WaterBill record
           const waterBill = await prisma.waterBill.findFirst({
             where: {
               id: bill.id,
-              razorpay_order_id: razorpayOrderId,
             },
             include: { connection: true },
           });
 
           if (waterBill) {
-            await prisma.waterBill.update({
-              where: { id: waterBill.id },
+            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+            // @ts-ignore: Prisma Client types are outdated until dev server is restarted
+            await prisma.entityStateLog.create({
               data: {
-                payment_status: 'SUCCESS',
-                razorpay_payment_id: razorpayPaymentId,
-                paid_at: new Date(),
-                receipt_url: receiptUrl,
-              },
+                entity_id: waterBill.id,
+                entity_type: 'water_bill',
+                state: 'SUCCESS',
+                payload: {
+                  razorpay_payment_id: razorpayPaymentId,
+                  receipt_url: receiptUrl,
+                  amount: Number(waterBill.total_amount),
+                  payer_details: payerDetails,
+                },
+                triggered_by: 'webhook',
+              }
             });
 
             // Write Audit Log
@@ -152,14 +181,21 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Transaction record not found' }, { status: 404 });
       }
 
-      await prisma.taxPayment.update({
-        where: { id: paymentId },
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore: Prisma Client types are outdated until dev server is restarted
+      await prisma.entityStateLog.create({
         data: {
-          payment_status: 'SUCCESS',
-          razorpay_payment_id: razorpayPaymentId,
-          paid_at: new Date(),
-          receipt_url: receiptUrl,
-        },
+          entity_id: paymentId,
+          entity_type: 'tax_payment',
+          state: 'SUCCESS',
+          payload: {
+            razorpay_payment_id: razorpayPaymentId,
+            receipt_url: receiptUrl,
+            amount: Number(taxPayment.amount),
+            payer_details: payerDetails,
+          },
+          triggered_by: 'webhook',
+        }
       });
 
       const prop = taxPayment.property;
@@ -215,14 +251,21 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Water bill record not found' }, { status: 404 });
       }
 
-      await prisma.waterBill.update({
-        where: { id: paymentId },
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore: Prisma Client types are outdated until dev server is restarted
+      await prisma.entityStateLog.create({
         data: {
-          payment_status: 'SUCCESS',
-          razorpay_payment_id: razorpayPaymentId,
-          paid_at: new Date(),
-          receipt_url: receiptUrl,
-        },
+          entity_id: paymentId,
+          entity_type: 'water_bill',
+          state: 'SUCCESS',
+          payload: {
+            razorpay_payment_id: razorpayPaymentId,
+            receipt_url: receiptUrl,
+            amount: Number(waterBill.total_amount),
+            payer_details: payerDetails,
+          },
+          triggered_by: 'webhook',
+        }
       });
 
       await prisma.auditLog.create({

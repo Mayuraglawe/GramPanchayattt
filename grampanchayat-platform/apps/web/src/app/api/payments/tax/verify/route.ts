@@ -52,15 +52,19 @@ export async function POST(request: NextRequest) {
     }
 
     if (success) {
-      // 2. Update payment status to SUCCESS
-      await prisma.taxPayment.update({
-        where: { id: paymentId },
+      // 2. Insert SUCCESS state in EntityStateLog
+      await prisma.entityStateLog.create({
         data: {
-          payment_status: 'SUCCESS',
-          razorpay_payment_id: razorpayPaymentId,
-          paid_at: new Date(),
-          receipt_url: `https://s3.amazonaws.com/gp-receipts/${razorpayPaymentId}.pdf`,
-        },
+          entity_id: paymentId,
+          entity_type: 'tax_payment',
+          state: 'SUCCESS',
+          payload: {
+            razorpay_payment_id: razorpayPaymentId,
+            receipt_url: `https://s3.amazonaws.com/gp-receipts/${razorpayPaymentId}.pdf`,
+            amount: Number(taxPayment.amount),
+          },
+          triggered_by: 'webhook',
+        }
       });
 
       // 3. Clear property arrears
@@ -85,12 +89,17 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json({ message: 'Payment verified and property accounts updated.' });
     } else {
-      // Mark as FAILED
-      await prisma.taxPayment.update({
-        where: { id: paymentId },
+      // Mark as FAILED via EntityStateLog
+      await prisma.entityStateLog.create({
         data: {
-          payment_status: 'FAILED',
-        },
+          entity_id: paymentId,
+          entity_type: 'tax_payment',
+          state: 'FAILED',
+          payload: {
+            razorpay_payment_id: razorpayPaymentId,
+          },
+          triggered_by: 'webhook',
+        }
       });
 
       return NextResponse.json({ error: 'Payment transaction failed' }, { status: 400 });
