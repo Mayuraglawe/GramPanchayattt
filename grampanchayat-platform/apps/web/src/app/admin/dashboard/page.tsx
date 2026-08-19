@@ -33,9 +33,9 @@ export default async function AdminDashboard() {
     { title: 'Certificate Approvals', desc: 'Approve or reject citizen applications', icon: '📜', href: '/admin/dashboard/certificates', color: 'from-amber-500 to-orange-500', available: true },
     { title: 'Complaint Management', desc: 'Assign and resolve ward complaints', icon: '📣', href: '/admin/dashboard/complaints', color: 'from-rose-500 to-pink-500', available: true },
     { title: 'Government Schemes', desc: 'Add and manage welfare schemes', icon: '💼', href: '/admin/dashboard/schemes', color: 'from-violet-500 to-purple-500', available: true },
-    { title: 'Notice Publishing', desc: 'Publish notices and tenders', icon: '📢', href: '#', color: 'from-sky-500 to-blue-500', available: false },
-    { title: 'Project Updates', desc: 'Track progress & upload photos', icon: '🏗️', href: '#', color: 'from-emerald-500 to-teal-500', available: false },
-    { title: 'Gram Sabha', desc: 'Record meeting decisions & minutes', icon: '🏛️', href: '#', color: 'from-indigo-500 to-blue-600', available: false },
+    { title: 'Notice Publishing', desc: 'Publish notices and tenders', icon: '📢', href: '/admin/dashboard/notices', color: 'from-sky-500 to-blue-500', available: true },
+    { title: 'Project Updates', desc: 'Track progress & upload photos', icon: '🏗️', href: '/admin/dashboard/projects', color: 'from-emerald-500 to-teal-500', available: true },
+    { title: 'Gram Sabha', desc: 'Record meeting decisions & minutes', icon: '🏛️', href: '/admin/dashboard/gram-sabha', color: 'from-indigo-500 to-blue-600', available: true },
   ];
 
   return (

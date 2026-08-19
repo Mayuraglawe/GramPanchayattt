@@ -92,7 +92,7 @@ export default function AdminCertificates() {
             </span>
           )}
           <Link
-            href="/dashboard/admin"
+            href="/admin/dashboard"
             className="text-xs bg-white text-orange-700 px-4 py-2 rounded-full font-semibold hover:bg-orange-100 transition"
           >
             Back to Dashboard

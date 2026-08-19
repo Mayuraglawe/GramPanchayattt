@@ -3,15 +3,25 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import LogoutButton from '@/components/LogoutButton';
 
-const NAV_ITEMS = [
-  { label: 'Dashboard',          href: '/admin/dashboard',               icon: '🏠' },
-  { label: 'Certificates',       href: '/admin/dashboard/certificates',  icon: '📜' },
-  { label: 'Complaints',         href: '/admin/dashboard/complaints',    icon: '📣' },
-  { label: 'Schemes',            href: '/admin/dashboard/schemes',       icon: '💼' },
-  { label: 'Notice Publishing',  href: '#',                              icon: '📢', disabled: true },
-  { label: 'Project Updates',    href: '#',                              icon: '🏗️', disabled: true },
-  { label: 'Gram Sabha',         href: '#',                              icon: '🏛️', disabled: true },
-  { label: 'Agent Approvals',    href: '#',                              icon: '🤖', disabled: true },
+interface NavItem {
+  label: string;
+  href: string;
+  icon: string;
+  disabled?: boolean;
+}
+
+const NAV_ITEMS: NavItem[] = [
+  { label: 'Dashboard',          href: '/admin/dashboard',                     icon: '🏠' },
+  { label: 'Users',              href: '/admin/dashboard/users',               icon: '👥' },
+  { label: 'Certificates',       href: '/admin/dashboard/certificates',        icon: '📜' },
+  { label: 'Complaints',         href: '/admin/dashboard/complaints',          icon: '📣' },
+  { label: 'Schemes',            href: '/admin/dashboard/schemes',             icon: '💼' },
+  { label: 'Asset Bookings',     href: '/admin/dashboard/assets',              icon: '🏗️' },
+  { label: 'Notice Publishing',  href: '/admin/dashboard/notices',             icon: '📢' },
+  { label: 'Project Updates',    href: '/admin/dashboard/projects',            icon: '📋' },
+  { label: 'Gram Sabha',         href: '/admin/dashboard/gram-sabha',          icon: '🏛️' },
+  { label: 'Agent Approvals',    href: '/admin/dashboard/agent-approvals',     icon: '🤖' },
+  { label: 'Citizen Feedback',   href: '/admin/dashboard/feedback',            icon: '⭐' },
 ];
 
 interface AdminSidebarProps {

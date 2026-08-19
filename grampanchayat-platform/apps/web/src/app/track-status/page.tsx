@@ -8,7 +8,7 @@ type TrackResult = {
   success: boolean;
   message?: string;
   data?: {
-    type: 'COMPLAINT' | 'CERTIFICATE';
+    type: 'COMPLAINT' | 'CERTIFICATE' | 'ASSET_BOOKING';
     status: string;
     details: string;
     appliedAt: string;
@@ -16,7 +16,7 @@ type TrackResult = {
 };
 
 export default function TrackStatusPage() {
-  const [type, setType] = useState<'COMPLAINT' | 'CERTIFICATE'>('COMPLAINT');
+  const [type, setType] = useState<'COMPLAINT' | 'CERTIFICATE' | 'ASSET_BOOKING'>('COMPLAINT');
   const [mobile, setMobile] = useState('');
   const [trackingId, setTrackingId] = useState('');
   const [loading, setLoading] = useState(false);
@@ -58,11 +58,12 @@ export default function TrackStatusPage() {
             <label className="block text-sm font-medium text-gray-700">What are you tracking?</label>
             <select
               value={type}
-              onChange={(e) => setType(e.target.value as 'COMPLAINT' | 'CERTIFICATE')}
+              onChange={(e) => setType(e.target.value as 'COMPLAINT' | 'CERTIFICATE' | 'ASSET_BOOKING')}
               className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm rounded-md border"
             >
               <option value="COMPLAINT">Grievance / Complaint</option>
               <option value="CERTIFICATE">Certificate Application</option>
+              <option value="ASSET_BOOKING">Asset Booking</option>
             </select>
           </div>
 

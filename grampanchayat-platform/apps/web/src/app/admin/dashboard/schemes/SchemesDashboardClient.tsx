@@ -34,6 +34,7 @@ export default function SchemesDashboardClient({
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   // Form states
   const [code, setCode] = useState('');
@@ -113,6 +114,26 @@ export default function SchemesDashboardClient({
     }
   };
 
+  const handleDelete = async (id: string, name: string) => {
+    if (!confirm(`Are you sure you want to permanently delete "${name}"? This cannot be undone.`)) return;
+    setDeletingId(id);
+    try {
+      const res = await fetch('/api/admin/schemes', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to delete scheme');
+      setSchemes((prev) => prev.filter((s) => s.id !== id));
+      setSuccess(`Scheme "${name}" deleted successfully.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete scheme');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
       {/* Top Header */}
@@ -126,7 +147,7 @@ export default function SchemesDashboardClient({
             Welcome, <strong>{adminName}</strong> (Ward {wardNo} Admin)
           </span>
           <Link
-            href="/dashboard/admin"
+            href="/admin/dashboard"
             className="text-xs bg-white text-orange-700 px-4 py-2 rounded-full font-semibold hover:bg-orange-100 transition-all flex items-center gap-1"
           >
             <span className="material-symbols-outlined text-[14px]">arrow_back</span>
@@ -339,14 +360,24 @@ export default function SchemesDashboardClient({
             <div className="flex flex-col gap-4 overflow-y-auto max-h-[70vh] pr-2">
               {schemes.map((s) => (
                 <div key={s.id} className="border border-gray-200 rounded-xl p-4 flex flex-col gap-2 bg-gray-50/50 hover:bg-white hover:shadow-sm transition-all relative">
-                  <span className="absolute top-4 right-4 bg-orange-100 text-orange-800 text-[10px] font-bold py-0.5 px-2.5 rounded-full uppercase">
-                    {s.government_level}
-                  </span>
+                  <div className="absolute top-4 right-4 flex items-center gap-2">
+                    <span className="bg-orange-100 text-orange-800 text-[10px] font-bold py-0.5 px-2.5 rounded-full uppercase">
+                      {s.government_level}
+                    </span>
+                    <button
+                      onClick={() => handleDelete(s.id, s.name)}
+                      disabled={deletingId === s.id}
+                      title="Delete scheme"
+                      className="bg-red-100 text-red-700 hover:bg-red-200 text-[10px] font-bold py-0.5 px-2 rounded-full transition disabled:opacity-40"
+                    >
+                      {deletingId === s.id ? '...' : '🗑 Delete'}
+                    </button>
+                  </div>
                   
-                  <div>
+                  <div className="pr-28">
                     <span className="text-orange-700 text-xs font-mono font-bold block">{s.scheme_code}</span>
                     <h4 className="font-bold text-gray-800 mt-0.5">{s.name}</h4>
-                    <h5 className="text-sm font-semibold text-gray-600 Marathi font-medium">{s.name_mr}</h5>
+                    <h5 className="text-sm font-semibold text-gray-600 font-medium">{s.name_mr}</h5>
                   </div>
                   
                   <p className="text-xs text-gray-500 line-clamp-2 mt-1">{s.description}</p>

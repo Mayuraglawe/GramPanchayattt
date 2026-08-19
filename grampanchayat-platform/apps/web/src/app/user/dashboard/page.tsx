@@ -45,6 +45,7 @@ export default function UserDashboard() {
   const [showCertModal, setShowCertModal] = useState(false);
   const [showComplaintModal, setShowComplaintModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentContext, setPaymentContext] = useState<{ title: string; amount: string }>({ title: 'Property Tax Payment', amount: '₹1,500.00' });
   
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [geotagMsg, setGeotagMsg] = useState('');
@@ -274,6 +275,7 @@ export default function UserDashboard() {
                     const win = window as unknown as { _rzp_payment_id: string; _rzp_order_id: string };
                     win._rzp_payment_id = data.paymentId;
                     win._rzp_order_id = data.orderId;
+                    setPaymentContext({ title: 'Property Tax Payment', amount: '₹1,500.00' });
                     setShowPaymentModal(true);
                   } catch (err: unknown) {
                     const msgText = err instanceof Error ? err.message : 'Failed to initiate checkout';
@@ -292,14 +294,34 @@ export default function UserDashboard() {
                   Water Bill
                 </span>
                 <div className="text-sm text-gray-500 mt-2">Connection: <strong className="text-gray-700">WTR-CON-9021</strong></div>
-                <div className="text-2xl font-bold text-gray-800 mt-2">₹0.00</div>
-                <div className="text-xs text-green-600 mt-1">Paid · No outstanding dues</div>
+                <div className="text-2xl font-bold text-gray-800 mt-2">₹350.00</div>
+                <div className="text-xs text-red-500 mt-1">Pending Bill (Aug 2026)</div>
               </div>
               <button
-                disabled
-                className="mt-6 px-4 py-2 bg-gray-200 text-gray-400 font-semibold text-sm rounded-full cursor-not-allowed w-full text-center"
+                onClick={async () => {
+                  setMsg({ text: '', type: '' });
+                  try {
+                    const res = await fetch('/api/payments/tax/initiate', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ propertyId: 'WTR-CON-9021', amount: 350 }),
+                    });
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.error || 'Failed to initiate checkout');
+                    
+                    const win = window as unknown as { _rzp_payment_id: string; _rzp_order_id: string };
+                    win._rzp_payment_id = data.paymentId;
+                    win._rzp_order_id = data.orderId;
+                    setPaymentContext({ title: 'Water Bill Payment', amount: '₹350.00' });
+                    setShowPaymentModal(true);
+                  } catch (err: unknown) {
+                    const msgText = err instanceof Error ? err.message : 'Failed to initiate checkout';
+                    setMsg({ text: msgText, type: 'error' });
+                  }
+                }}
+                className="mt-6 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm rounded-full transition w-full text-center"
               >
-                Fully Paid
+                Pay Water Bill
               </button>
             </div>
           </div>
@@ -530,9 +552,9 @@ export default function UserDashboard() {
             </div>
             
             <div className="text-4xl mb-3">💳</div>
-            <h3 className="font-bold text-gray-800 text-lg">Property Tax Payment</h3>
+            <h3 className="font-bold text-gray-800 text-lg">{paymentContext.title}</h3>
             <p className="text-xs text-gray-400 mt-1">Order Ref: {((window as unknown) as { _rzp_order_id?: string })._rzp_order_id || 'order_MOCK'}</p>
-            <div className="text-2xl font-bold text-gray-900 mt-4">₹1,500.00</div>
+            <div className="text-2xl font-bold text-gray-900 mt-4">{paymentContext.amount}</div>
             
             <div className="w-full space-y-3 mt-6">
               <button
