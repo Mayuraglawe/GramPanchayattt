@@ -56,7 +56,7 @@ export async function PATCH(request: NextRequest) {
     // Update the main request status
     const updatedRequest = await prisma.agentPermissionRequest.update({
       where: { id },
-      data: { status: approved ? 'APPROVED' : 'DENIED' },
+      data: { status: approved ? 'APPROVED' : 'REJECTED' },
     });
 
     return NextResponse.json({ success: true, request: updatedRequest });

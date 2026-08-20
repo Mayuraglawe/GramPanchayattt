@@ -7,10 +7,11 @@ export const dynamic = 'force-dynamic';
 export default async function AdminDashboard() {
   const h = await headers();
   const userId = h.get('x-user-id') ?? '';
-  const name = h.get('x-user-name') ?? 'Admin';
+  const nameHeader = h.get('x-user-name') ?? '';
 
   const allUsers = await getUsers();
   const dbUser = allUsers.find((u) => u.id === userId);
+  const userName = dbUser?.fullName || (nameHeader && nameHeader !== 'Admin' ? nameHeader : 'Mayur Aglawe');
   const wardNo = dbUser?.ward_no ?? 1;
 
   const certificates = await getCertificates();
@@ -39,98 +40,123 @@ export default async function AdminDashboard() {
   ];
 
   return (
-    <main className="flex-1 p-8">
-
-      {/* Page Header */}
-      <div className="mb-8">
-        <p className="text-orange-400 text-xs font-semibold uppercase tracking-widest mb-1">Admin Dashboard</p>
-        <h2 className="text-white text-2xl font-bold">Welcome back, {name} 👋</h2>
-        <p className="text-white/50 text-sm mt-1">Ward {wardNo} — Wandhale Gram Panchayat</p>
-      </div>
-
-      {/* Stats Grid */}
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-10">
-        {[
-          {
-            label: 'Pending Certificates',
-            value: pendingCertificates,
-            icon: '📋',
-            gradient: 'from-amber-500/20 to-orange-500/10',
-            border: 'border-amber-500/30',
-            text: 'text-amber-400',
-            sub: pendingCertificates > 0 ? '⚠️ Needs review' : '✅ All cleared',
-          },
-          {
-            label: 'Active Complaints',
-            value: activeComplaints,
-            icon: '🚨',
-            gradient: 'from-rose-500/20 to-red-500/10',
-            border: 'border-rose-500/30',
-            text: 'text-rose-400',
-            sub: activeComplaints > 0 ? '⚠️ Action needed' : '✅ All resolved',
-          },
-          {
-            label: 'Total Certificates',
-            value: totalCerts,
-            icon: '📄',
-            gradient: 'from-sky-500/20 to-blue-500/10',
-            border: 'border-sky-500/30',
-            text: 'text-sky-400',
-            sub: 'Ward applications',
-          },
-          {
-            label: 'Resolved Complaints',
-            value: resolvedComplaints,
-            icon: '✅',
-            gradient: 'from-emerald-500/20 to-green-500/10',
-            border: 'border-emerald-500/30',
-            text: 'text-emerald-400',
-            sub: 'Closed this cycle',
-          },
-        ].map((s) => (
-          <div key={s.label} className={`bg-gradient-to-br ${s.gradient} border ${s.border} rounded-2xl p-5 backdrop-blur-sm`}>
-            <div className="text-2xl mb-3">{s.icon}</div>
-            <div className={`text-3xl font-bold ${s.text} mb-1`}>{s.value}</div>
-            <div className="text-white/70 text-xs font-semibold">{s.label}</div>
-            <div className="text-white/40 text-xs mt-1">{s.sub}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* Quick Actions */}
-      <div>
-        <h3 className="text-white/70 text-xs font-semibold uppercase tracking-widest mb-4">⚡ Quick Actions</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-          {modules.map((m) => (
-            <Link
-              key={m.title}
-              href={m.href}
-              className={`group relative bg-white/5 border border-white/10 rounded-2xl p-5 backdrop-blur-sm transition-all duration-200 ${
-                m.available
-                  ? 'hover:bg-white/10 hover:border-orange-500/30 hover:scale-[1.02] hover:shadow-xl'
-                  : 'opacity-40 pointer-events-none'
-              }`}
-            >
-              {!m.available && (
-                <span className="absolute top-3 right-3 text-[10px] bg-white/10 text-white/40 px-2 py-0.5 rounded-full">Soon</span>
-              )}
-              <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${m.color} flex items-center justify-center text-2xl mb-4 shadow-lg ${m.available ? 'group-hover:scale-110' : ''} transition-transform`}>
-                {m.icon}
-              </div>
-              <div className="text-white font-semibold text-sm mb-1">{m.title}</div>
-              <div className="text-white/50 text-xs leading-relaxed">{m.desc}</div>
-              {m.available && (
-                <div className="mt-3 text-orange-400 text-xs font-medium">Open →</div>
-              )}
-            </Link>
-          ))}
+    <div className="flex-1 bg-gray-50 flex flex-col min-h-screen">
+      {/* Top Header Bar (Matching Certificates & Admin Modules Header) */}
+      <header className="bg-orange-700 text-white px-8 py-5 flex items-center justify-between shadow">
+        <div>
+          <p className="text-xs opacity-80 uppercase tracking-widest font-semibold">Admin Control Panel</p>
+          <h1 className="text-xl font-bold flex items-center gap-2">
+            <span>🏛️</span> Admin Dashboard Overview
+          </h1>
         </div>
-      </div>
+        <div className="flex items-center gap-4">
+          <span className="text-xs bg-orange-800 border border-orange-600/60 px-3 py-1.5 rounded-full font-semibold uppercase tracking-wider">
+            WARD {wardNo} SCOPE
+          </span>
+          <Link
+            href="/"
+            className="text-xs bg-white text-orange-700 px-4 py-2 rounded-full font-bold hover:bg-orange-100 transition shadow-xs"
+          >
+            Public Portal ↗
+          </Link>
+        </div>
+      </header>
 
-      {/* Footer */}
-      <div className="mt-12 pt-6 border-t border-white/10">
-        <p className="text-white/25 text-xs">Wandhale Gram Panchayat Digital Platform • Ward {wardNo}</p>
-      </div>
-    </main>
+      {/* Main Content Body */}
+      <main className="max-w-7xl mx-auto px-8 py-8 w-full flex-1">
+        {/* Welcome Section */}
+        <div className="mb-8">
+          <h2 className="text-2xl font-extrabold text-gray-900 tracking-tight">
+            Welcome back, {userName} 👋
+          </h2>
+          <p className="text-gray-500 text-sm mt-1 font-medium">
+            Ward {wardNo} — Wandhale Gram Panchayat
+          </p>
+        </div>
+
+        {/* Stats Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 mb-10">
+          {/* Pending Certificates */}
+          <div className="bg-white border border-amber-200 rounded-2xl p-5 shadow-xs hover:shadow-md transition-all">
+            <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center text-xl mb-3 font-bold">
+              📜
+            </div>
+            <div className="text-3xl font-extrabold text-amber-700">{pendingCertificates}</div>
+            <div className="text-gray-700 text-xs font-bold uppercase tracking-wider mt-1">Pending Certificates</div>
+            <div className="text-xs font-semibold text-amber-600 mt-2 flex items-center gap-1">
+              {pendingCertificates > 0 ? '⚠️ Needs review' : '✅ All cleared'}
+            </div>
+          </div>
+
+          {/* Active Complaints */}
+          <div className="bg-white border border-rose-200 rounded-2xl p-5 shadow-xs hover:shadow-md transition-all">
+            <div className="w-10 h-10 rounded-xl bg-rose-100 text-rose-700 flex items-center justify-center text-xl mb-3 font-bold">
+              🚨
+            </div>
+            <div className="text-3xl font-extrabold text-rose-700">{activeComplaints}</div>
+            <div className="text-gray-700 text-xs font-bold uppercase tracking-wider mt-1">Active Complaints</div>
+            <div className="text-xs font-semibold text-rose-600 mt-2 flex items-center gap-1">
+              {activeComplaints > 0 ? '⚠️ Action needed' : '✅ All clear'}
+            </div>
+          </div>
+
+          {/* Total Certificates */}
+          <div className="bg-white border border-sky-200 rounded-2xl p-5 shadow-xs hover:shadow-md transition-all">
+            <div className="w-10 h-10 rounded-xl bg-sky-100 text-sky-700 flex items-center justify-center text-xl mb-3 font-bold">
+              📄
+            </div>
+            <div className="text-3xl font-extrabold text-sky-700">{totalCerts}</div>
+            <div className="text-gray-700 text-xs font-bold uppercase tracking-wider mt-1">Total Certificates</div>
+            <div className="text-xs font-medium text-sky-600 mt-2">Ward applications</div>
+          </div>
+
+          {/* Resolved Complaints */}
+          <div className="bg-white border border-emerald-200 rounded-2xl p-5 shadow-xs hover:shadow-md transition-all">
+            <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center text-xl mb-3 font-bold">
+              ✅
+            </div>
+            <div className="text-3xl font-extrabold text-emerald-700">{resolvedComplaints}</div>
+            <div className="text-gray-700 text-xs font-bold uppercase tracking-wider mt-1">Resolved Complaints</div>
+            <div className="text-xs font-medium text-emerald-600 mt-2">Closed this cycle</div>
+          </div>
+        </div>
+
+        {/* Quick Actions Grid */}
+        <div>
+          <h3 className="text-gray-800 text-xs font-bold uppercase tracking-wider mb-4 flex items-center gap-2">
+            <span>⚡</span> Quick Administrative Actions
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
+            {modules.map((m) => (
+              <Link
+                key={m.title}
+                href={m.href}
+                className="group bg-white border border-gray-200 rounded-2xl p-6 shadow-xs hover:shadow-lg hover:border-orange-500/60 hover:-translate-y-0.5 transition-all duration-200 flex flex-col justify-between"
+              >
+                <div>
+                  <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${m.color} text-white flex items-center justify-center text-2xl mb-4 shadow-md group-hover:scale-105 transition-transform`}>
+                    {m.icon}
+                  </div>
+                  <h4 className="text-gray-900 font-bold text-base mb-1 group-hover:text-orange-600 transition-colors">
+                    {m.title}
+                  </h4>
+                  <p className="text-gray-600 text-xs leading-relaxed">{m.desc}</p>
+                </div>
+                <div className="text-orange-600 font-bold text-xs mt-4 flex items-center gap-1 group-hover:gap-2 transition-all">
+                  Open Module →
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="mt-12 pt-6 border-t border-gray-200 text-center sm:text-left">
+          <p className="text-gray-500 text-xs font-medium">
+            Wandhale Gram Panchayat Digital Platform • Ward {wardNo} Admin Scope
+          </p>
+        </div>
+      </main>
+    </div>
   );
 }
